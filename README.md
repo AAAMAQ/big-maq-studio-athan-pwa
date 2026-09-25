@@ -59,12 +59,12 @@ https://github.com/AAAMAQ/TEST-athan-pwa
 
 ## Current Version
 
-**v3.2.4**
+**v3.3.1**
 
-This version adds consent-based sharing for non-personal defaults and explicit sharing for one selected City or
-Masjid profile, with clear privacy boundaries for worship data. Preferences now control the app-wide AM/PM or
-24-hour clock and optionally show a Sunnahs tile without changing the five obligatory-prayer total. Home now moves
-from Fajr to Sunrise at the correct time and updates the prayer window while the app remains open.
+This version upgrades Salah Tracker with three-state obligatory prayer logging, private daily notes, verified
+streaks, period-based insights, and contextual summaries. It also unifies active calendar exports, groups optional
+fixed-Isha, Friday Jumu’ah, and privacy-safe Salah review reminders in Settings, and adds profile-based Iqama export
+to Masjid Mode while retaining the standalone Iqama Times screen.
 
 ---
 
@@ -190,18 +190,23 @@ Quran settings and bookmarks are stored locally on the device/browser.
 
 ### Salah Tracker
 
-The Salah Tracker allows users to track completed prayers by day.
+The private Salah Tracker records each obligatory prayer as Completed, Missed, or Not logged. Unknown days are not
+treated as misses, and optional Sunnahs stay separate from obligatory statistics.
 
 Features include:
 
 - Monthly calendar view
-- Daily prayer completion tracking
-- Mark individual prayers
-- Mark all prayers for a day
-- Clear all prayers for a day
-- Monthly completion count
+- Three-state daily logging for Fajr, Dhuhr, Asr, Maghrib, and Isha
+- Mark all completed and clear all obligatory actions
+- Private notes stored separately for every calendar day
+- Week, month, last-30-day, and all-time insight periods
+- Per-prayer completed/logged rates and verified current/longest streaks
+- Contextual consistency, improvement, complete-day, weekday, and trend summaries
 
-Tracker data is stored locally on the user's device.
+Tracker records and daily notes are stored locally on the user's device. The optional evening review reminder is
+configured in Settings and can be included in Settings calendar exports, but its calendar event contains no prayer
+history. Backup and Restore includes tracker records, notes, and the reminder preference, while Share Your Defaults
+excludes all three.
 
 ---
 
@@ -248,6 +253,17 @@ These files can be imported into calendar apps such as:
 - Other calendar apps that support `.ics` files
 
 Calendar alerts are handled by the user's calendar app, not by the PWA itself.
+
+Settings, City Mode, standalone Iqama Times, Deep Search Athan, and Masjid Mode use one shared calendar serializer
+and download path. Settings exports can explicitly include or exclude fixed-time Isha, Friday Jumu’ah, and the
+privacy-safe Salah Tracker review reminder. The shared handler supports local and UTC event times, stable event
+identifiers, escaped/folded calendar text, and one or more alerts per event while preserving each screen's
+established choices.
+
+Masjid Mode can export the selected masjid profile's Iqama rules and configured Jumu’ah slots for a date range. It
+uses the linked City Mode profile—including imported timetables—when available. If no City Mode profile is linked,
+the screen explicitly falls back to current device location with the prayer calculation saved in Settings. The
+standalone Iqama Times screen remains independently available.
 
 ---
 
@@ -519,4 +535,3 @@ Our motto is:
 May Allah accept it, make it beneficial, and allow it to help people remember their prayers on time.
 
 ---
-

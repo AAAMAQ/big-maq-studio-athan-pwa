@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-09-25-tracker-calendar",
+    "date": "2026-09-25",
+    "version": "v3.3.1",
+    "title": "Salah insights, daily notes, and unified calendar exports",
+    "summary": [
+      "Upgraded Salah Tracker to distinguish Completed, Missed, and Not logged for every obligatory prayer, with period-based per-prayer rates, verified streaks, logged-day coverage, improvement comparisons, complete-day context, weekday patterns, and completion trends. Optional Sunnahs remain separate from obligatory statistics.",
+      "Added private daily notes to each tracker date. Notes stay with the local Salah record and are included in Backup and Restore without affecting obligatory totals, rates, streaks, or Share Your Defaults.",
+      "Moved the opt-in Salah review reminder into Settings beside optional fixed-time Isha and Friday Jumu’ah calendar items. The privacy-safe event contains no prayer history, the preference stays local, and calendar apps control alert delivery.",
+      "Unified active Settings, City Mode, standalone Iqama Times, Deep Search Athan, and Masjid Mode exports behind one calendar serializer and download path. Masjid Mode can now export the selected profile's Iqama rules and Friday Jumu’ah slots using its linked City Mode Athan source or the clearly disclosed current-device fallback."
+    ]
+  },
+  {
     "id": "2026-08-05-v3-2-4",
     "date": "2026-08-05",
     "version": "v3.2.4",

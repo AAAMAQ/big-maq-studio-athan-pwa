@@ -10,6 +10,7 @@ export const BACKUP_VERSION = 1
 export const ATHAN_LOCAL_STORAGE_KEYS = [
   'athan.iqama.settings.v1',
   'athan.iqama.jumuahReminder.v1',
+  'athan.calendar.fixedIsha.enabled.v1',
   'athan.language.v1',
   'athan.preference.timeFormat.v1',
   'athan.preference.showSunnah.v1',
@@ -20,6 +21,7 @@ export const ATHAN_LOCAL_STORAGE_KEYS = [
   'athan.quran.offline.meta.v1',
   'athan.ramadan.settings.v1',
   'athan.ramadan.fasts.v1',
+  'athan.salah.reminder.v1',
   'athan.savedCities.v1',
   'athan.travel.currentCityId.v1',
   'athan.prayer.customProfiles.v1',

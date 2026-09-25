@@ -17,6 +17,9 @@ describe('shared defaults', () => {
     localStorage.setItem('reminderOffsetMin', '15')
     localStorage.setItem('ishaFixedTime', '21:45')
     localStorage.setItem('salahLogV1', '{"private":"worship data"}')
+    localStorage.setItem('athan.salah.reminder.v1', '{"enabled":true,"time":"20:30"}')
+    localStorage.setItem('athan.calendar.fixedIsha.enabled.v1', 'false')
+    localStorage.setItem('athan.iqama.jumuahReminder.v1', '{"include":true,"time":"09:30"}')
     localStorage.setItem('athan.ramadan.fasts.v1', '[{"private":true}]')
     localStorage.setItem('athan.quran.progress.v1', '{"lastReadAyah":7}')
     localStorage.setItem('athan.location.cache.v1', '{"latitude":1,"longitude":2}')
@@ -33,11 +36,14 @@ describe('shared defaults', () => {
     })
     expect(url).not.toContain('private')
     expect(url).not.toContain('latitude')
+    expect(JSON.stringify(parsed)).not.toContain('20:30')
+    expect(JSON.stringify(parsed)).not.toContain('09:30')
     expect(Object.keys(parsed ?? {})).toEqual(['app', 'version', 'prayer', 'preferences', 'reminders'])
   })
 
   it('applies safe defaults without touching personal worship data', () => {
     localStorage.setItem('salahLogV1', '{"2026-08-05":{"Fajr":true}}')
+    localStorage.setItem('athan.salah.reminder.v1', '{"enabled":true,"time":"20:30"}')
     localStorage.setItem('athan.ramadan.fasts.v1', '[{"date":"2026-03-01"}]')
     localStorage.setItem('athan.quran.progress.v1', '{"lastReadAyah":7}')
 
@@ -53,6 +59,7 @@ describe('shared defaults', () => {
     expect(localStorage.getItem('athan.prayer.calculationMode.v1')).toBe('manual')
     expect(localStorage.getItem('athan.preference.timeFormat.v1')).toBe('24h')
     expect(localStorage.getItem('salahLogV1')).toBe('{"2026-08-05":{"Fajr":true}}')
+    expect(localStorage.getItem('athan.salah.reminder.v1')).toBe('{"enabled":true,"time":"20:30"}')
     expect(localStorage.getItem('athan.ramadan.fasts.v1')).toBe('[{"date":"2026-03-01"}]')
     expect(localStorage.getItem('athan.quran.progress.v1')).toBe('{"lastReadAyah":7}')
   })

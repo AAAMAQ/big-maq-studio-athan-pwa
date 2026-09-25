@@ -34,6 +34,23 @@ import {
   loadTravelDestinationId,
   setTravelDestinationId
 } from '../lib/savedCities'
+import {
+  clampJumuahTime,
+  loadJumuahReminderSettings,
+  saveJumuahReminderSettings,
+  type JumuahReminderSettings
+} from '../lib/iqama'
+import {
+  loadSalahReminderPreferences,
+  saveSalahReminderPreferences,
+  type SalahReminderPreferences
+} from '../lib/salahReminder'
+import {
+  buildSettingsExtraReminderItems,
+  loadFixedIshaEnabled,
+  saveFixedIshaEnabled,
+  type SettingsCalendarItem
+} from '../lib/settingsCalendar'
 
 const METHODS: MethodKey[] = [
   'MuslimWorldLeague',
@@ -165,6 +182,9 @@ export default function Settings({ go }: Props) {
     return Number.isFinite(value) ? Math.max(1, value) : 20
   })
   const [ishaTime, setIshaTime] = useState(() => readStorage(LS_ISHA_FIXED) || '22:00')
+  const [fixedIshaEnabled, setFixedIshaEnabled] = useState(loadFixedIshaEnabled)
+  const [jumuahReminder, setJumuahReminder] = useState<JumuahReminderSettings>(loadJumuahReminderSettings)
+  const [salahReminder, setSalahReminder] = useState<SalahReminderPreferences>(loadSalahReminderPreferences)
   const [message, setMessage] = useState('')
 
   const autoConfig = getCountryPrayerConfig(countryCode)
@@ -284,6 +304,24 @@ export default function Settings({ go }: Props) {
     setMessage(t('homePrayerSourceSaved', language))
   }
 
+  function updateFixedIsha(value: boolean) {
+    setFixedIshaEnabled(saveFixedIshaEnabled(value))
+  }
+
+  function updateJumuahReminder(next: Partial<JumuahReminderSettings>) {
+    const updated = {
+      ...jumuahReminder,
+      ...next,
+      time: clampJumuahTime(next.time ?? jumuahReminder.time)
+    }
+    setJumuahReminder(updated)
+    saveJumuahReminderSettings(updated)
+  }
+
+  function updateSalahReminder(next: Partial<SalahReminderPreferences>) {
+    setSalahReminder(saveSalahReminderPreferences({ ...salahReminder, ...next }))
+  }
+
   async function exportIcs(days: number, label: string) {
     const locationState = await refreshDeviceLocation()
     if (!locationState.location) {
@@ -292,7 +330,7 @@ export default function Settings({ go }: Props) {
     }
 
     const base = new Date()
-    const all: Array<{ title: string; when: Date }> = []
+    const all: SettingsCalendarItem[] = []
     for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
       const day = new Date(base)
       day.setDate(day.getDate() + dayIndex)
@@ -312,12 +350,12 @@ export default function Settings({ go }: Props) {
         { title: 'Maghrib', when: times.maghrib },
         { title: 'Isha', when: times.isha }
       )
-      if (ishaTime) {
-        const [hours, minutes] = ishaTime.split(':').map(Number)
-        const customIsha = new Date(day)
-        customIsha.setHours(hours ?? 22, minutes ?? 0, 0, 0)
-        all.push({ title: 'Isha Reminder (custom time)', when: customIsha })
-      }
+      all.push(...buildSettingsExtraReminderItems(day, {
+        fixedIshaEnabled,
+        fixedIshaTime: ishaTime,
+        jumuah: jumuahReminder,
+        salahReview: salahReminder
+      }))
     }
 
     const effectiveOffset = Math.max(1, offsetMin)
@@ -564,22 +602,69 @@ export default function Settings({ go }: Props) {
               ))}
             </select>
           </label>
-          <label className="block text-sm font-medium text-gray-300">
-            {t('fixedIshaReminder', language)}
+          <div className="rounded-md border border-gray-700 bg-gray-900 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+              <input type="checkbox" checked={fixedIshaEnabled} onChange={(event) => updateFixedIsha(event.target.checked)} className="h-4 w-4 accent-teal-600" />
+              {t('fixedIshaReminder', language)}
+            </label>
             <input
+              aria-label={t('fixedIshaReminder', language)}
               className={selectClass}
               type="time"
               value={ishaTime}
+              disabled={!fixedIshaEnabled}
               onChange={(event) => setIshaTime(event.target.value)}
             />
             <span className="mt-2 block text-xs leading-5 text-gray-400">{t('fixedIshaHelp', language)}</span>
-          </label>
+          </div>
         </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-md border border-gray-700 bg-gray-900 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+              <input type="checkbox" checked={jumuahReminder.include} onChange={(event) => updateJumuahReminder({ include: event.target.checked })} className="h-4 w-4 accent-teal-600" />
+              {t('jumuahCalendarReminder', language)}
+            </label>
+            <input
+              aria-label={t('jumuahCalendarReminderTime', language)}
+              className={selectClass}
+              type="time"
+              min="05:00"
+              max="11:00"
+              value={jumuahReminder.time}
+              disabled={!jumuahReminder.include}
+              onChange={(event) => updateJumuahReminder({ time: event.target.value })}
+            />
+            <p className="mt-2 text-xs leading-5 text-gray-400">{t('jumuahCalendarReminderHelp', language)}</p>
+          </div>
+
+          <div className="rounded-md border border-gray-700 bg-gray-900 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+              <input type="checkbox" checked={salahReminder.enabled} onChange={(event) => updateSalahReminder({ enabled: event.target.checked })} className="h-4 w-4 accent-teal-600" />
+              {t('salahTrackerCalendarReminder', language)}
+            </label>
+            <input
+              aria-label={t('salahTrackerCalendarReminderTime', language)}
+              className={selectClass}
+              type="time"
+              value={salahReminder.time}
+              disabled={!salahReminder.enabled}
+              onChange={(event) => updateSalahReminder({ time: event.target.value })}
+            />
+            <p className="mt-2 text-xs leading-5 text-gray-400">{t('salahTrackerCalendarReminderHelp', language)}</p>
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs leading-5 text-gray-400">{t('optionalCalendarReminderHelp', language)}</p>
 
         <button
           type="button"
           onClick={() => {
             writeStorage(LS_OFFSET, String(Math.max(1, offsetMin)))
+            writeStorage(LS_ISHA_FIXED, ishaTime)
+            saveFixedIshaEnabled(fixedIshaEnabled)
+            saveJumuahReminderSettings(jumuahReminder)
+            saveSalahReminderPreferences(salahReminder)
             setMessage(t('reminderUpdated', language))
           }}
           className="mt-4 min-h-10 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-600"

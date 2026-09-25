@@ -11,6 +11,12 @@ const items = [
     screen: 'AthanEngine'
   },
   {
+    titleKey: 'savedCitiesTravel',
+    descriptionKey: 'savedCitiesDescription',
+    screen: 'SavedCities'
+  },
+
+  {
     titleKey: 'iqamaTimes',
     descriptionKey: 'iqamaTimesDescription',
     screen: 'Iqama'
@@ -19,11 +25,6 @@ const items = [
     titleKey: 'masjidMode',
     descriptionKey: 'mosqueProfilesDescription',
     screen: 'MasjidMode'
-  },
-  {
-    titleKey: 'savedCitiesTravel',
-    descriptionKey: 'savedCitiesDescription',
-    screen: 'SavedCities'
   },
   {
     titleKey: 'salahTracker',

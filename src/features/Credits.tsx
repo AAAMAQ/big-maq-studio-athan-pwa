@@ -125,7 +125,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v3.2.4 adds privacy-safe default sharing, selected City and Masjid profile sharing, app-wide clock preferences, an optional Sunnahs tracker tile, and the corrected post-Fajr Sunrise state."
+            value="v3.3.1 adds accurate Salah insights, private daily notes, unified calendar exports, grouped Settings reminders, and Masjid-profile Iqama export."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>
