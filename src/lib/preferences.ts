@@ -1,7 +1,9 @@
 export type TimeFormatPreference = 'device' | '12h' | '24h'
+export type SavedCityTimeView = 'city' | 'device' | 'utc'
 
 const TIME_FORMAT_KEY = 'athan.preference.timeFormat.v1'
 const SHOW_SUNNAH_KEY = 'athan.preference.showSunnah.v1'
+export const SAVED_CITY_TIME_VIEW_KEY = 'athan.preference.savedCityTimeView.v1'
 const PREFERENCES_EVENT = 'athan-preferences-change'
 
 export function loadTimeFormatPreference(): TimeFormatPreference {
@@ -36,6 +38,24 @@ export function saveShowSunnah(value: boolean): void {
     window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT))
   } catch {
     // Keep Salah Tracker usable when storage is unavailable.
+  }
+}
+
+export function loadSavedCityTimeView(): SavedCityTimeView {
+  try {
+    const value = localStorage.getItem(SAVED_CITY_TIME_VIEW_KEY)
+    return value === 'device' || value === 'utc' ? value : 'city'
+  } catch {
+    return 'city'
+  }
+}
+
+export function saveSavedCityTimeView(value: SavedCityTimeView): void {
+  try {
+    localStorage.setItem(SAVED_CITY_TIME_VIEW_KEY, value)
+    window.dispatchEvent(new CustomEvent(PREFERENCES_EVENT))
+  } catch {
+    // Time display remains available for this session.
   }
 }
 

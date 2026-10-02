@@ -1,4 +1,5 @@
 import type { MadhabKey } from './prayer'
+import { dateKeyForDevice, zonedWallClockToInstant } from './sourceTime'
 
 export type ManualPrayerTimetableRow = {
   fajr: string
@@ -230,7 +231,8 @@ function firstArray(...values: unknown[]) {
 export function getManualPrayerTimes(
   timetable: ManualPrayerTimetable | undefined,
   date: Date,
-  madhab: MadhabKey
+  madhab: MadhabKey,
+  timezone?: string
 ): ManualPrayerTimes | null {
   if (!timetable) return null
   const row = timetable.rows[monthDayKey(date)]
@@ -244,13 +246,16 @@ export function getManualPrayerTimes(
     : row.ishaShafi || row.isha || row.ishaHanafi
   if (!asr || !isha) return null
 
+  const at = (value: string) => timezone
+    ? zonedWallClockToInstant(dateKeyForDevice(date), value, timezone)
+    : dateAtTime(date, value)
   return {
-    fajr: dateAtTime(date, row.fajr),
-    sunrise: dateAtTime(date, row.sunrise),
-    dhuhr: dateAtTime(date, row.dhuhr),
-    asr: dateAtTime(date, asr),
-    maghrib: dateAtTime(date, row.maghrib),
-    isha: dateAtTime(date, isha)
+    fajr: at(row.fajr),
+    sunrise: at(row.sunrise),
+    dhuhr: at(row.dhuhr),
+    asr: at(asr),
+    maghrib: at(row.maghrib),
+    isha: at(isha)
   }
 }
 

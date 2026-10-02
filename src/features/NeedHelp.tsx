@@ -36,6 +36,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
       <nav className="text-sm text-teal-300 flex flex-wrap gap-3">
         <a href="#downloadapp" className="underline">Download & install the app</a>
         <a href="#downloadics" className="underline">Download and Set reminders via Calendar (.ics)</a>
+        <a href="#salah-search" className="underline">Search Salah progress</a>
         <a href="#whatsnew" className="underline">What&apos;s new?</a>
         <a href="#qibla" className="underline">Qibla not accurate?</a>
         <a href="#v3features" className="underline">v3.2.2 features</a>
@@ -82,6 +83,10 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           <li>
             <span className="font-semibold">Download a custom .ics file:</span> Export calendar reminders for the exact
             location, date range, calculation method, Madhab, and reminder time you selected.
+          </li>
+          <li>
+            <span className="font-semibold">Add a second calendar alert:</span> Optionally choose another minutes-before
+            time. Both alerts belong to each selected prayer event in the same calendar file.
           </li>
         </ul>
 
@@ -466,6 +471,12 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           the Qibla angle. On phones this usually comes from GPS; on desktops it may be based on Wi‑Fi or IP, which is
           less precise.
         </p>
+        <p className="text-gray-200 text-sm">
+          If you select a saved city as your primary prayer source, its times default to that city&apos;s clock. You can
+          choose City time, Device time, or UTC in Settings under Primary prayer time source. The timezone label shows
+          which view you are reading. The prayer instant and countdown remain the same. If the city&apos;s timezone is
+          unavailable, the app labels the fallback instead of guessing a city clock.
+        </p>
 
         <h3 className="font-semibold text-teal-300 text-sm mt-2">Getting a good location fix</h3>
         <ul className="list-disc pl-5 space-y-1 text-gray-200 text-sm">
@@ -794,12 +805,16 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           <li>Open the <span className="font-semibold">Settings</span> tab at the bottom of the app.</li>
           <li>Scroll to the section called <span className="font-semibold">Reminders via Calendar (.ics)</span>.</li>
           <li>
-            In <span className="font-semibold">Reminder offset (minutes before each prayer)</span>, type how many
+            In <span className="font-semibold">Reminder offset (minutes before each prayer)</span>, choose how many
             minutes before every prayer you want the reminder (for example 10, 15, or 20).
           </li>
+          <li>
+            Optionally enable a second reminder and choose another time before each regular prayer event. One exported
+            event can contain two alerts, such as 10 and 15 minutes before.
+          </li>
           <li className="font-semibold">
-            IMPORTANT: Make sure that the calculation method is right to your country and city, since that affects prayer times.
-            failing to do so may lead to incorrect reminder times.
+            Check the primary prayer source shown in Settings before exporting. The file uses the selected saved city
+            and its calculation settings or imported timetable; when no city is selected, it uses current device location.
           </li>
           <li>
             (Optional) Set your <span className="font-semibold">Fixed Isha reminder (HH:mm)</span> time between Isha
@@ -826,8 +841,8 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         <h3 className="font-semibold mt-4">Important notes & things to watch out for</h3>
         <ul className="list-disc pl-5 space-y-1 text-gray-200">
           <li>
-            <span className="font-semibold">Your current location is used when exporting.</span> If you travel to a new
-            city or country, export a fresh .ics so the reminders match the new prayer times.
+            <span className="font-semibold">Your primary prayer source is used when exporting.</span> If you switch
+            the selected city or travel to another location, export a fresh .ics file for the source you want.
           </li>
           <li>
             <span className="font-semibold">Changing settings does not update old events automatically.</span> If you
@@ -839,8 +854,9 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
             old &quot;Athan Reminders&quot; calendar (or its events) first so you don&apos;t end up with duplicates.
           </li>
           <li>
-            <span className="font-semibold">Time zones matter.</span> Reminders follow your device time zone. After a
-            big time zone change, check the events and re-export if anything looks off.
+            <span className="font-semibold">Time zones matter.</span> Exported prayer events identify their source and
+            use UTC instants. Calendar apps normally show those instants in the device&apos;s current time zone, so a
+            saved city&apos;s 5:59 PM prayer can appear at a different clock time while you are elsewhere.
           </li>
           <li>
             <span className="font-semibold">Calendar alerts, not the PWA, make the sound.</span> Once imported, your
@@ -848,9 +864,39 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
             notifications are enabled in system settings.
           </li>
           <li>
-            <span className="font-semibold"> If you want multiple reminders</span> you can do the same steps as above while changing the reminder time.
+            <span className="font-semibold">Second alerts are optional.</span> The extra alert applies to regular
+            prayer-time events. Fixed Isha, Jumu&apos;ah, and Salah Tracker review keep their own existing alert behavior.
           </li>
         </ul>
+      </section>
+
+      <section id="salah-search" className="space-y-3">
+        <h2 className="text-xl font-semibold">Search Salah progress</h2>
+        <p className="text-sm text-gray-200">
+          Open Salah Tracker for daily logging and notes. Its Insights, Search Salah Progress, and Graph Insights
+          buttons open separate views of your private records. Search results are days, and tapping a day returns
+          to its calendar entry.
+        </p>
+        <p className="text-sm text-gray-200">
+          Graph Insights keeps the existing completion bars and adds a line chart to make the weekly or monthly
+          direction easier to see. Each point uses completed prayers divided by logged prayers; gaps mean no prayers
+          were logged in that period.
+        </p>
+        <p className="text-sm text-gray-200">
+          The numbers 1–5 mean Fajr, Dhuhr, Asr, Maghrib, and Isha. A prayer name or number finds days when it was
+          completed: <code>fajr</code> and <code>1</code> mean the same thing. Use <code>!</code> for explicitly
+          missed, <code>~</code> for not logged, and <code>/</code> for either missed or not logged.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-gray-200">
+          <li><code>1&amp;2</code> finds days when both Fajr and Dhuhr were completed.</li>
+          <li><code>[1&amp;2]</code> finds days when only those two were completed; other prayers may be missed or unlogged.</li>
+          <li><code>!2,!3</code> finds days when Dhuhr or Asr was explicitly missed.</li>
+          <li><code>1&amp;(!2,!3)</code> finds days when Fajr was completed and either Dhuhr or Asr was missed.</li>
+        </ul>
+        <p className="text-xs text-gray-400">
+          A missed prayer is a recorded status. A prayer left unlogged is unknown and is never counted as missed.
+          Search, notes, and graphs stay on your device.
+        </p>
       </section>
       
 

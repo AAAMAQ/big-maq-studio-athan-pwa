@@ -200,6 +200,10 @@ Features include:
 - Mark all completed and clear all obligatory actions
 - Private notes stored separately for every calendar day
 - Week, month, last-30-day, and all-time insight periods
+- Separate Insights, Search Salah Progress, and Graph Insights views, keeping daily logging on the main Tracker screen
+- Graph Insights includes per-prayer completion bars plus an accessible weekly/monthly line trend with logged-data gaps
+- Month selection and custom date ranges for insights
+- Search by prayer name or 1–5 alias, with `!` for Missed, `~` for Not logged, `/` for either, `&` for AND, comma for OR, parentheses for grouping, and `[1&2]` for an exact set of completed prayers
 - Per-prayer completed/logged rates and verified current/longest streaks
 - Contextual consistency, improvement, complete-day, weekday, and trend summaries
 
@@ -215,6 +219,9 @@ excludes all three.
 The app includes a monthly prayer-time view.
 
 Users can view prayer times across a selected month and change months/years.
+When a saved city is the primary source, City time is the default display. Choose City time, Device time, or UTC in
+Settings under Primary prayer time source; the prayer screens show the active timezone label. Calendar dates, Friday
+labels, and next Fajr follow the selected city's local date.
 
 ---
 
@@ -259,6 +266,13 @@ and download path. Settings exports can explicitly include or exclude fixed-time
 privacy-safe Salah Tracker review reminder. The shared handler supports local and UTC event times, stable event
 identifiers, escaped/folded calendar text, and one or more alerts per event while preserving each screen's
 established choices.
+
+Deep Search Athan and Settings each offer an optional second alert for regular prayer-time events, allowing two
+calendar alerts within one event. Settings uses the selected primary prayer source—either the chosen City Mode
+profile, including its calculation corrections or imported timetable, or current device location when no city is
+selected. Its rich prayer events include source and calculation context and use UTC event instants. Fixed Isha,
+Jumu’ah, and Salah Tracker review events keep their existing alert behavior. Calendar apps control delivery of all
+alerts after import.
 
 Masjid Mode can export the selected masjid profile's Iqama rules and configured Jumu’ah slots for a date range. It
 uses the linked City Mode profile—including imported timetables—when available. If no City Mode profile is linked,

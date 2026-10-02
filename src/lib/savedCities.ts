@@ -18,6 +18,7 @@ import {
   normalizeCorrections,
   type PrayerTimeCorrections
 } from './prayerCorrections'
+import { isValidTimezone } from './sourceTime'
 
 export type SavedCity = {
   id: string
@@ -73,7 +74,7 @@ export function createSavedCity(input?: Partial<SavedCity>): SavedCity {
     countryCode: countryCode || config.countryCode,
     latitude: Number.isFinite(input?.latitude) ? Number(input?.latitude) : 0,
     longitude: Number.isFinite(input?.longitude) ? Number(input?.longitude) : 0,
-    timezone: input?.timezone,
+    timezone: isValidTimezone(input?.timezone) ? input.timezone : undefined,
     calculationMode: input?.calculationMode || 'auto',
     calculationMethod: input?.calculationMethod || config.defaultMethod,
     madhab: input?.madhab || config.defaultMadhab,
@@ -141,9 +142,14 @@ export function correctionsForSavedCity(city: SavedCity): PrayerTimeCorrections 
     : undefined
 }
 
-export function prayerTimesForSavedCity(city: SavedCity, date = new Date()): ManualPrayerTimes {
+export function prayerTimesForSavedCity(
+  city: SavedCity,
+  date = new Date(),
+  options: { timezoneAware?: boolean } = {}
+): ManualPrayerTimes {
   if (city.calculationMode === 'manual-timetable') {
-    const imported = getManualPrayerTimes(city.manualTimetable, date, city.madhab)
+    const imported = getManualPrayerTimes(city.manualTimetable, date, city.madhab,
+      options.timezoneAware && isValidTimezone(city.timezone) ? city.timezone : undefined)
     if (imported) return imported
   }
   return applyCorrections(
@@ -169,13 +175,15 @@ export async function searchSavedCity(query: string): Promise<Partial<SavedCity>
     const city = address.city || address.town || address.village || address.county || item.name || ''
     const countryCode = String(address.country_code || '').toUpperCase()
     const config = getCountryPrayerConfig(countryCode)
+    const latitude = Number(item.lat)
+    const longitude = Number(item.lon)
     return createSavedCity({
       name: city || item.display_name,
       city,
       country: address.country || config.countryName,
       countryCode,
-      latitude: Number(item.lat),
-      longitude: Number(item.lon),
+      latitude,
+      longitude,
       calculationMode: 'auto',
       calculationMethod: config.defaultMethod,
       madhab: config.defaultMadhab,
@@ -183,6 +191,37 @@ export async function searchSavedCity(query: string): Promise<Partial<SavedCity>
       notes: item.display_name || ''
     })
   })
+}
+
+/** Match Deep Search's official coordinate timezone lookup; never estimate an IANA zone. */
+export async function lookupTimezoneForCoordinates(latitude: number, longitude: number): Promise<string | null> {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5_000)
+  try {
+    const url = `https://www.timeapi.io/api/TimeZone/coordinate?latitude=${encodeURIComponent(latitude)}&longitude=${encodeURIComponent(longitude)}`
+    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal })
+    if (!response.ok) return null
+    const data = await response.json()
+    const timezone = data?.timeZone || data?.timezone || data?.ianaTimeZone || data?.id
+    return isValidTimezone(timezone) ? timezone : null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+/** Existing saved profiles gain timezone metadata without changing their prayer rules. */
+export async function ensureSavedCityTimezone(city: SavedCity): Promise<SavedCity> {
+  if (isValidTimezone(city.timezone)) return city
+  // 0,0 is the unsupplied-coordinate placeholder for a manually created profile.
+  if (city.latitude === 0 && city.longitude === 0) return city
+  const timezone = await lookupTimezoneForCoordinates(city.latitude, city.longitude)
+  if (!timezone) return city
+  const updated = { ...city, timezone }
+  saveSavedCities(loadSavedCities().map((item) => item.id === city.id ? updated : item))
+  return updated
 }
 
 function normalizeSavedCity(value: unknown): SavedCity | null {
@@ -201,7 +240,7 @@ function normalizeSavedCity(value: unknown): SavedCity | null {
     countryCode: countryCode || config.countryCode,
     latitude: Number.isFinite(latitude) ? latitude : 0,
     longitude: Number.isFinite(longitude) ? longitude : 0,
-    timezone: typeof maybe.timezone === 'string' ? maybe.timezone : undefined,
+    timezone: isValidTimezone(maybe.timezone) ? maybe.timezone : undefined,
     calculationMode: (
       maybe.calculationMode === 'manual-method'
       || maybe.calculationMode === 'custom-corrections'

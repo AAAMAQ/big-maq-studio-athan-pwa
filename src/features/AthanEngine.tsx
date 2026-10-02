@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  correctionsForSavedCity,
+  ensureSavedCityTimezone,
   loadSavedCities,
   prayerTimesForSavedCity,
   settingsForSavedCity,
@@ -11,6 +11,12 @@ import {
 import { formatSignedCorrection, PRAYER_CORRECTION_KEYS } from '../lib/prayerCorrections'
 import { getCountryPrayerConfig } from '../data/countryPrayerMethods'
 import { effectiveTimeFormat } from '../lib/preferences'
+import { addDateKeyDays, dateKeyAnchor, isValidTimezone } from '../lib/sourceTime'
+import {
+  DEEP_SEARCH_SECOND_REMINDER_KEY,
+  loadSecondReminder,
+  saveSecondReminder
+} from '../lib/calendarSecondReminder'
 
 type Props = {
   go?: (screen: string) => void
@@ -50,6 +56,7 @@ type EnginePrayerRow = {
   Asr: string
   Maghrib: string
   Isha: string
+  instants?: Partial<Record<'Fajr' | 'Sunrise' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha', Date>>
 }
 
 type TimeFormat = '24h' | '12h'
@@ -178,11 +185,16 @@ export default function AthanEngine({ go }: Props) {
   const [method, setMethod] = useState<EngineMethod>('MWL')
   const [madhab, setMadhab] = useState<EngineMadhab>('Shafi')
   const [reminderMinutes, setReminderMinutes] = useState(10)
+  const [secondReminder, setSecondReminder] = useState(() => loadSecondReminder(DEEP_SEARCH_SECOND_REMINDER_KEY))
   const [timeFormat] = useState<TimeFormat>(() => effectiveTimeFormat())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const activeSavedCity = savedCities.find((city) => city.id === activeSavedCityId) ?? null
+
+  function updateSecondReminder(update: Partial<typeof secondReminder>) {
+    setSecondReminder(saveSecondReminder(DEEP_SEARCH_SECOND_REMINDER_KEY, { ...secondReminder, ...update }))
+  }
 
   async function handleSearch() {
     try {
@@ -219,34 +231,41 @@ export default function AthanEngine({ go }: Props) {
   }
 
   async function generateSavedCityRows(city: SavedCity) {
-    const { getTimetableRows } = await import('../lib/timetableExport')
-    const settings = settingsForSavedCity(city)
-    const corrections = correctionsForSavedCity(city)
+    const profile = await ensureSavedCityTimezone(city)
+    if (!isValidTimezone(profile.timezone)) {
+      throw new Error(`The timezone for ${city.name || city.city || 'this saved city'} is unavailable. Add a valid timezone to its City Mode profile before exporting.`)
+    }
+    const settings = settingsForSavedCity(profile)
     const start = parseDateInput(fromDate)
     const end = parseDateInput(toDate)
     if (start > end) throw new Error('The start date cannot be after the end date.')
-    const timetableRows = getTimetableRows({
-      locationName: city.name || city.city || 'Saved city',
-      coords: { latitude: city.latitude, longitude: city.longitude },
-      fromDate: start,
-      toDate: end,
-      settings,
-      corrections,
-      prayerTimesForDate: (date) => prayerTimesForSavedCity(city, date),
-      sourceDescription: city.calculationMode === 'manual-timetable'
-        ? `Imported yearly timetable (${city.manualTimetable?.sourceFileName || 'file'})`
-        : undefined
-    })
-
-    const prayerRows: EnginePrayerRow[] = timetableRows.map((row) => ({
-      ...row,
-      displayDate: formatDisplayDate(row.date)
-    }))
+    const formatCityTime = (instant: Date) => new Intl.DateTimeFormat('en-GB', {
+      timeZone: profile.timezone,
+      hourCycle: 'h23', hour: '2-digit', minute: '2-digit'
+    }).format(instant)
+    const prayerRows: EnginePrayerRow[] = []
+    for (let dateKey = fromDate; dateKey <= toDate; dateKey = addDateKeyDays(dateKey, 1)) {
+      if (profile.calculationMode === 'manual-timetable' && !profile.manualTimetable?.rows[dateKey.slice(5)]) {
+        throw new Error(`The imported timetable for ${profile.name || profile.city} has no row for ${dateKey}.`)
+      }
+      const times = prayerTimesForSavedCity(profile, dateKeyAnchor(dateKey), { timezoneAware: true })
+      prayerRows.push({
+        date: dateKey,
+        displayDate: formatDisplayDate(dateKey),
+        Fajr: formatCityTime(times.fajr), Sunrise: formatCityTime(times.sunrise),
+        Dhuhr: formatCityTime(times.dhuhr), Asr: formatCityTime(times.asr),
+        Maghrib: formatCityTime(times.maghrib), Isha: formatCityTime(times.isha),
+        instants: {
+          Fajr: times.fajr, Sunrise: times.sunrise, Dhuhr: times.dhuhr,
+          Asr: times.asr, Maghrib: times.maghrib, Isha: times.isha
+        }
+      })
+    }
     const savedLocation: EngineLocation = {
-      label: city.name || city.city || `${city.latitude.toFixed(4)}, ${city.longitude.toFixed(4)}`,
-      latitude: city.latitude,
-      longitude: city.longitude,
-      timezone: city.timezone
+      label: profile.name || profile.city || `${profile.latitude.toFixed(4)}, ${profile.longitude.toFixed(4)}`,
+      latitude: profile.latitude,
+      longitude: profile.longitude,
+      timezone: profile.timezone
     }
 
     setMethod(toEngineMethod(settings.method))
@@ -331,7 +350,8 @@ export default function AthanEngine({ go }: Props) {
         method,
         madhab,
         rows,
-        reminderMinutes
+        reminderMinutes,
+        secondReminder
       })
 
       engine.downloadIcs(engine.makeIcsFilename(location, fromDate, toDate), ics)
@@ -494,6 +514,38 @@ export default function AthanEngine({ go }: Props) {
               {timeFormat === '12h' ? 'AM/PM' : '24-hour'} · Change in Settings → Preferences
             </p>
           </div>
+        </div>
+
+        <div className="rounded border border-gray-700 bg-gray-900/70 p-3 space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+            <input
+              type="checkbox"
+              checked={secondReminder.enabled}
+              onChange={(event) => updateSecondReminder({ enabled: event.target.checked })}
+              className="h-4 w-4 accent-teal-500"
+            />
+            Second reminder for each exported prayer-time event
+          </label>
+          {secondReminder.enabled && (
+            <label className="block text-sm text-gray-300" htmlFor="deep-search-second-reminder">
+              Second alert
+              <select
+                id="deep-search-second-reminder"
+                value={secondReminder.minutesBefore}
+                onChange={(event) => updateSecondReminder({ minutesBefore: Number(event.target.value) })}
+                className="mt-1 w-full rounded bg-gray-950 border border-gray-700 px-3 py-2 text-white"
+              >
+                {REMINDER_OPTIONS.map((minutes) => (
+                  <option key={minutes} value={minutes}>
+                    {minutes === 0 ? 'At prayer time' : `${minutes} minutes before prayer`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {secondReminder.enabled && secondReminder.minutesBefore === reminderMinutes && (
+            <p className="text-xs text-amber-200">Choose a different time for the second alert.</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

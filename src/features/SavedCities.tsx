@@ -14,6 +14,7 @@ import {
   createSavedCity,
   correctionsForSavedCity,
   deleteSavedCity,
+  ensureSavedCityTimezone,
   loadSavedCities,
   loadTravelDestinationId,
   prayerTimesForSavedCity,
@@ -62,24 +63,32 @@ export default function SavedCities({ go }: Props) {
     }
   }
 
-  function saveResult(result: Partial<SavedCity>) {
-    const city = createSavedCity(result)
+  async function saveResult(result: Partial<SavedCity>, resolveTimezone = true) {
+    setMessage(resolveTimezone ? 'Checking the selected city’s timezone…' : 'Saving city…')
+    const draft = createSavedCity(result)
+    const city = resolveTimezone && hasUsableCoordinates(draft) ? await ensureSavedCityTimezone(draft) : draft
     const next = upsertSavedCity(city, cities)
     setCities(next)
     setSelectedId(city.id)
     setResults([])
-    setMessage('Saved city added.')
+    setMessage(city.timezone
+      ? `Saved city added with ${city.timezone} timezone.`
+      : 'Saved city added. Its timezone is unavailable; city-time display and UTC exports need a timezone.')
   }
 
   function updateSelected(next: SavedCity) {
     setCities((current) => current.map((city) => city.id === next.id ? next : city))
   }
 
-  function saveSelected() {
+  async function saveSelected() {
     if (!selected) return
-    const next = upsertSavedCity(selected, cities)
+    setMessage('Checking the selected city’s timezone…')
+    const city = hasUsableCoordinates(selected) ? await ensureSavedCityTimezone(selected) : selected
+    const next = upsertSavedCity(city, cities)
     setCities(next)
-    setMessage('Saved city updated on this device.')
+    setMessage(city.timezone
+      ? `Saved city updated on this device with ${city.timezone} timezone.`
+      : 'Saved city updated. Its timezone is unavailable; city-time display and UTC exports need a timezone.')
   }
 
   function removeSelected() {
@@ -113,6 +122,10 @@ export default function SavedCities({ go }: Props) {
       const importedCountry = locationParts.at(-1) || selected.country
       const importedCity = locationParts[0] || selected.city
       const countryConfig = COUNTRY_PRAYER_CONFIGS.find((item) => item.countryName.toLowerCase() === importedCountry.toLowerCase())
+      const coordinatesChanged = (
+        (manualTimetable.sourceLatitude !== undefined && manualTimetable.sourceLatitude !== selected.latitude)
+        || (manualTimetable.sourceLongitude !== undefined && manualTimetable.sourceLongitude !== selected.longitude)
+      )
       const updated: SavedCity = {
         ...selected,
         calculationMode: 'manual-timetable',
@@ -124,11 +137,13 @@ export default function SavedCities({ go }: Props) {
         country: importedCountry,
         countryCode: countryConfig?.countryCode || selected.countryCode,
         latitude: manualTimetable.sourceLatitude ?? selected.latitude,
-        longitude: manualTimetable.sourceLongitude ?? selected.longitude
+        longitude: manualTimetable.sourceLongitude ?? selected.longitude,
+        timezone: coordinatesChanged ? undefined : selected.timezone
       }
-      const next = upsertSavedCity(updated, cities)
+      const city = hasUsableCoordinates(updated) ? await ensureSavedCityTimezone(updated) : updated
+      const next = upsertSavedCity(city, cities)
       setCities(next)
-      setSelectedId(updated.id)
+      setSelectedId(city.id)
       setMessage(`Imported ${manualTimetable.rowCount} Gregorian dates from ${manualTimetable.sourceSheetName}. This profile now uses the timetable file.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The timetable file could not be imported.')
@@ -218,7 +233,7 @@ export default function SavedCities({ go }: Props) {
         {results.length > 0 && (
           <div className="space-y-2">
             {results.map((result, index) => (
-              <button key={index} type="button" onClick={() => saveResult(result)} className="block w-full rounded bg-gray-900 hover:bg-gray-700 p-3 text-left">
+              <button key={index} type="button" onClick={() => { void saveResult(result) }} className="block w-full rounded bg-gray-900 hover:bg-gray-700 p-3 text-left">
                 <span className="font-semibold">{result.name || result.city || 'Location'}</span>
                 <span className="block text-xs text-gray-400">{result.country} · {result.latitude}, {result.longitude}</span>
               </button>
@@ -230,7 +245,7 @@ export default function SavedCities({ go }: Props) {
       <section className="rounded-lg bg-gray-800 p-4 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold">City Profiles</h2>
-          <button type="button" onClick={() => saveResult(createSavedCity({ name: 'Manual City' }))} className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-2 text-sm">Add Manual City</button>
+          <button type="button" onClick={() => { void saveResult(createSavedCity({ name: 'Manual City' }), false) }} className="rounded bg-gray-700 hover:bg-gray-600 px-3 py-2 text-sm">Add Manual City</button>
         </div>
         {cities.length === 0 ? <p className="text-sm text-gray-400">No saved cities yet.</p> : (
           <div className="grid gap-2 sm:grid-cols-2">
@@ -260,8 +275,8 @@ export default function SavedCities({ go }: Props) {
                 {COUNTRY_PRAYER_CONFIGS.map((item) => <option key={item.countryCode} value={item.countryCode}>{item.countryName}</option>)}
               </select>
             </label>
-            <NumberField label="Latitude" value={selected.latitude} onChange={(value) => updateSelected({ ...selected, latitude: value })} />
-            <NumberField label="Longitude" value={selected.longitude} onChange={(value) => updateSelected({ ...selected, longitude: value })} />
+            <NumberField label="Latitude" value={selected.latitude} onChange={(value) => updateSelected({ ...selected, latitude: value, timezone: undefined })} />
+            <NumberField label="Longitude" value={selected.longitude} onChange={(value) => updateSelected({ ...selected, longitude: value, timezone: undefined })} />
           </div>
 
           <div className="rounded bg-gray-900 p-3 text-sm text-gray-300">
@@ -461,6 +476,11 @@ function SignedCorrectionField({ label, value, onChange }: { label: string; valu
 
 function SelectField({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
   return <label className="space-y-1 text-sm"><span className="font-semibold">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded bg-gray-900 border border-gray-700 px-3 py-2">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+}
+
+function hasUsableCoordinates(city: SavedCity) {
+  return Number.isFinite(city.latitude) && Number.isFinite(city.longitude)
+    && (city.latitude !== 0 || city.longitude !== 0)
 }
 
 function parseDate(value: string) {

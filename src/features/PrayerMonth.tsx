@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { refreshDeviceLocation } from '../lib/locationStore'
-import { computePrayerTimes, loadSettings } from '../lib/prayer'
-import { formatSavedCityLabel, loadPrimarySavedCity } from '../lib/primaryPrayerSource'
-import { prayerTimesForSavedCity } from '../lib/savedCities'
-import { formatAppTime } from '../lib/preferences'
+import { formatPrimaryPrayerTime, prayerTimesForPrimarySourceDate, primaryTimeViewLabel, resolvePrimaryPrayerSource, sourceDateKey, type PrimaryPrayerSource } from '../lib/primaryPrayerSource'
+import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
+import { sourceWeekday } from '../lib/sourceTime'
 
 const PRAYERS = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const
 type PrayerName = typeof PRAYERS[number]
@@ -16,39 +14,51 @@ export default function PrayerMonth() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [savedCity] = useState(loadPrimarySavedCity)
+  const [source, setSource] = useState<PrimaryPrayerSource | null>(null)
+  const [timeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
+
+  useEffect(() => {
+    let cancelled = false
+    resolvePrimaryPrayerSource().then((resolved) => {
+      if (cancelled) return
+      setSource(resolved)
+      const [sourceYear, sourceMonth] = sourceDateKey(resolved).split('-').map(Number)
+      setYear(sourceYear)
+      setMonth(sourceMonth - 1)
+    }).catch((reason) => {
+      if (!cancelled) {
+        setError(reason instanceof Error ? reason.message : 'Prayer source unavailable.')
+        setLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError('')
+    if (!source) return () => { cancelled = true }
     ;(async () => {
-      const location = savedCity ? null : await refreshDeviceLocation()
-      if (!savedCity && !location?.location) throw new Error('Location unavailable')
       const results: Row[] = []
       const daysInMonth = new Date(year, month + 1, 0).getDate()
       for (let day = 1; day <= daysInMonth; day += 1) {
-        const date = new Date(year, month, day)
-        const times = savedCity
-          ? prayerTimesForSavedCity(savedCity, date)
-          : computePrayerTimes({
-            latitude: location!.location!.latitude,
-            longitude: location!.location!.longitude
-          }, date, loadSettings())
+        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        const times = prayerTimesForPrimarySourceDate(source, dateKey)
         results.push({
           date: day,
-          Fajr: formatAppTime(times.fajr),
-          Sunrise: formatAppTime(times.sunrise),
-          Dhuhr: formatAppTime(times.dhuhr),
-          Asr: formatAppTime(times.asr),
-          Maghrib: formatAppTime(times.maghrib),
-          Isha: formatAppTime(times.isha)
+          Fajr: formatPrimaryPrayerTime(source, times.fajr, timeView),
+          Sunrise: formatPrimaryPrayerTime(source, times.sunrise, timeView),
+          Dhuhr: formatPrimaryPrayerTime(source, times.dhuhr, timeView),
+          Asr: formatPrimaryPrayerTime(source, times.asr, timeView),
+          Maghrib: formatPrimaryPrayerTime(source, times.maghrib, timeView),
+          Isha: formatPrimaryPrayerTime(source, times.isha, timeView)
         })
       }
       if (!cancelled) setRows(results)
     })()
-      .catch(() => {
-        if (!cancelled) setError('Location permission is needed for the monthly timetable.')
+      .catch((reason) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Monthly prayer times could not be calculated.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -56,9 +66,10 @@ export default function PrayerMonth() {
     return () => {
       cancelled = true
     }
-  }, [month, savedCity, year])
+  }, [month, source, timeView, year])
 
   const monthName = new Date(2000, month, 1).toLocaleString([], { month: 'long' })
+  const todayKey = source ? sourceDateKey(source) : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const previousMonth = () => {
     if (month === 0) {
       setMonth(11)
@@ -81,9 +92,10 @@ export default function PrayerMonth() {
       <header className="px-1">
         <p className="text-xs font-semibold uppercase text-teal-400">Monthly Timetable</p>
         <h2 className="mt-1 text-2xl font-bold text-white">{monthName} {year}</h2>
-        <p className={`mt-1 text-xs ${savedCity ? 'font-semibold text-teal-300' : 'text-gray-500'}`}>
-          {savedCity ? `Saved City: ${formatSavedCityLabel(savedCity)}` : 'Current device location'}
+        <p className={`mt-1 text-xs ${source?.savedCity ? 'font-semibold text-teal-300' : 'text-gray-500'}`}>
+          {source?.savedCity ? `Saved City: ${source.locationLabel}` : 'Current device location'}
         </p>
+        {source && <p className="mt-1 text-xs text-gray-400">{primaryTimeViewLabel(source, timeView)}</p>}
       </header>
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-700 bg-gray-800 p-3">
@@ -96,7 +108,7 @@ export default function PrayerMonth() {
             value={year}
             onChange={(event) => setYear(Number.parseInt(event.target.value, 10))}
           >
-            {Array.from({ length: 11 }, (_, index) => today.getFullYear() - 5 + index).map((value) => (
+            {Array.from({ length: 11 }, (_, index) => Number(todayKey.slice(0, 4)) - 5 + index).map((value) => (
               <option key={value} value={value}>{value}</option>
             ))}
           </select>
@@ -119,8 +131,8 @@ export default function PrayerMonth() {
             </thead>
             <tbody className="divide-y divide-gray-700/70">
               {rows.map((row) => (
-                <tr key={row.date} className={row.date === today.getDate() && month === today.getMonth() && year === today.getFullYear() ? 'bg-teal-950/35' : ''}>
-                  <td className="px-3 py-3 font-semibold text-teal-300">{row.date}</td>
+                <tr key={row.date} className={`${year}-${String(month + 1).padStart(2, '0')}-${String(row.date).padStart(2, '0')}` === todayKey ? 'bg-teal-950/35' : ''}>
+                  <td className="px-3 py-3 font-semibold text-teal-300">{row.date}{sourceWeekday(`${year}-${String(month + 1).padStart(2, '0')}-${String(row.date).padStart(2, '0')}`) === 5 ? <span className="ml-1 text-xs text-teal-200">Fri · Jumu’ah</span> : null}</td>
                   {PRAYERS.map((prayer) => <td key={prayer} className="whitespace-nowrap px-3 py-3 text-gray-200">{row[prayer]}</td>)}
                 </tr>
               ))}

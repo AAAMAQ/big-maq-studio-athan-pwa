@@ -79,6 +79,11 @@ export default function Privacy({ go, backTarget = 'Credits' }: Props) {
           Some searches and Quran downloads need an internet connection. Data already saved by the PWA may remain
           available offline through browser storage and app caches.
         </p>
+        <p className="text-sm leading-6 text-gray-300">
+          Resolving the timezone for a selected saved city may send that city&apos;s coordinates to a timezone service.
+          The resulting timezone is saved with the city for future use. Salah logs and daily notes are never sent
+          with that request.
+        </p>
       </section>
 
       <section className="rounded-lg border border-teal-900 bg-gray-800 p-4">

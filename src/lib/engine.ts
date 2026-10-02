@@ -1,4 +1,6 @@
 import { buildIcsCalendar, downloadICS } from './ics'
+import { validateSecondReminder, type SecondReminderPreference } from './calendarSecondReminder'
+import { isValidTimezone, timezoneOffsetMinutes, zonedWallClockToInstant } from './sourceTime'
 
 const ENGINE_LOCATION_CACHE_KEY = 'athan.engine.locationCache.v2'
 const ENGINE_LOCATION_CACHE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30
@@ -60,6 +62,8 @@ export type EnginePrayerRow = {
   Asr: string
   Maghrib: string
   Isha: string
+  /** Exact instants supplied by a saved-city profile; avoid reconstructing these from preview text. */
+  instants?: Partial<Record<EnginePrayerName, Date>>
 }
 
 export type EnginePrayerOptions = {
@@ -74,6 +78,7 @@ export type EnginePrayerOptions = {
 export type EngineIcsOptions = EnginePrayerOptions & {
   rows: EnginePrayerRow[]
   reminderMinutes: number
+  secondReminder?: SecondReminderPreference
   includePrayers?: Partial<Record<EnginePrayerName, boolean>>
 }
 
@@ -327,6 +332,7 @@ export async function getEnginePrayerRows(options: EnginePrayerOptions): Promise
 }
 
 export function generateEngineIcs(options: EngineIcsOptions): string {
+  validateSecondReminder(options.reminderMinutes, options.secondReminder ?? { enabled: false, minutesBefore: 15 })
   const included = options.includePrayers ?? {
     Fajr: true,
     Sunrise: true,
@@ -339,8 +345,13 @@ export function generateEngineIcs(options: EngineIcsOptions): string {
   const events = options.rows.flatMap((row) => ENGINE_PRAYERS
     .filter((prayer) => included[prayer])
     .map((prayer) => {
-      const targetOffsetMinutes = getOffsetMinutesForLocation(options.location, parseDateOnly(row.date))
-      const start = dateAndTimeToUtcDate(row.date, row[prayer], targetOffsetMinutes)
+      const fallbackOffsetMinutes = getOffsetMinutesForLocation(options.location, parseDateOnly(row.date))
+      const start = row.instants?.[prayer] ?? (isValidTimezone(options.location.timezone)
+        ? zonedWallClockToInstant(row.date, row[prayer], options.location.timezone)
+        : dateAndTimeToUtcDate(row.date, row[prayer], fallbackOffsetMinutes))
+      const targetOffsetMinutes = isValidTimezone(options.location.timezone)
+        ? timezoneOffsetMinutes(start, options.location.timezone)
+        : fallbackOffsetMinutes
       return {
         title: `Athan - ${prayer}`,
         start,
@@ -350,7 +361,12 @@ export function generateEngineIcs(options: EngineIcsOptions): string {
         location: options.location.label,
         description: `Prayer reminder for ${prayer}. Method: ${options.method}. Madhab: ${options.madhab}. Location: ${options.location.label}. Timezone: ${options.location.timezone || 'estimated from longitude'}. Offset: ${formatGmtOffset(targetOffsetMinutes)}. High-latitude rule is selected automatically when needed.`,
         categories: ['Deep Search Athan'],
-        alarms: [{ minutesBefore: options.reminderMinutes, description: `${prayer} prayer reminder` }]
+        alarms: [
+          { minutesBefore: options.reminderMinutes, description: `${prayer} prayer reminder` },
+          ...(options.secondReminder?.enabled
+            ? [{ minutesBefore: options.secondReminder.minutesBefore, description: `${prayer} prayer reminder` }]
+            : [])
+        ]
       }
     }))
 

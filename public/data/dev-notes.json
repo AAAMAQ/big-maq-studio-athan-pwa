@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-02-tracker-search-timezones-calendar-alerts",
+    "date": "2026-10-02",
+    "title": "Salah search, saved-city clock views, and optional second calendar alerts",
+    "summary": [
+      "Separated Salah Tracker's daily calendar, prayer logging, and private notes from dedicated Insights, Search Salah Progress, and Graph Insights screens. Added selected-month and custom date ranges, contextual logged-data counts, a compact prayer-status search language, and a line chart alongside completion bars.",
+      "Added explicit City time, Device time, and UTC views for a primary saved city, with the selector in Settings. Source-local dates, Friday labels, and imported timetable wall-clock values now follow the selected city's timezone when it is available; unavailable timezone data is labeled rather than guessed.",
+      "Added independent, opt-in second ICS alerts to Deep Search Athan and Settings prayer events. Settings now follows the selected primary prayer source and exports richly described UTC calendar events; fixed Isha, Jumu’ah, and the private Salah review event retain their existing single-alert behavior.",
+      "Included the new display and second-alert preferences in local Backup & Restore while keeping Salah records, daily notes, and reminder preferences out of Share Your Defaults. Standalone Iqama Times and Masjid Mode remain available."
+    ]
+  },
+  {
     "id": "2026-09-25-tracker-calendar",
     "date": "2026-09-25",
     "version": "v3.3.1",

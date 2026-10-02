@@ -5,7 +5,7 @@ import {
   detectCountryCode,
   getCountryPrayerConfig
 } from '../data/countryPrayerMethods'
-import { buildIcsForDates, downloadICS } from '../lib/ics'
+import { downloadICS } from '../lib/ics'
 import { LANGUAGE_LABELS, loadLanguage, saveLanguage, t, type AppLanguage } from '../lib/i18n'
 import {
   loadCachedLocation,
@@ -14,7 +14,6 @@ import {
   saveCachedLocation
 } from '../lib/locationStore'
 import {
-  computePrayerTimes,
   loadSettings,
   saveSettings,
   type HighLatKey,
@@ -24,16 +23,21 @@ import {
 } from '../lib/prayer'
 import {
   loadShowSunnah,
+  loadSavedCityTimeView,
   loadTimeFormatPreference,
+  saveSavedCityTimeView,
   saveShowSunnah,
   saveTimeFormatPreference,
+  type SavedCityTimeView,
   type TimeFormatPreference
 } from '../lib/preferences'
 import {
+  correctionsForSavedCity,
   loadSavedCities,
   loadTravelDestinationId,
   setTravelDestinationId
 } from '../lib/savedCities'
+import { formatSignedCorrection, PRAYER_CORRECTION_KEYS } from '../lib/prayerCorrections'
 import {
   clampJumuahTime,
   loadJumuahReminderSettings,
@@ -46,11 +50,21 @@ import {
   type SalahReminderPreferences
 } from '../lib/salahReminder'
 import {
-  buildSettingsExtraReminderItems,
   loadFixedIshaEnabled,
-  saveFixedIshaEnabled,
-  type SettingsCalendarItem
+  saveFixedIshaEnabled
 } from '../lib/settingsCalendar'
+import {
+  SETTINGS_SECOND_REMINDER_KEY,
+  loadSecondReminder,
+  saveSecondReminder
+} from '../lib/calendarSecondReminder'
+import {
+  prayerTimesForPrimarySourceDate,
+  resolvePrimaryPrayerSource,
+  sourceDateKey
+} from '../lib/primaryPrayerSource'
+import { addDateKeyDays, isValidTimezone } from '../lib/sourceTime'
+import { buildSettingsRichCalendar, settingsRichFilename } from '../lib/settingsRichCalendar'
 
 const METHODS: MethodKey[] = [
   'MuslimWorldLeague',
@@ -173,6 +187,7 @@ export default function Settings({ go }: Props) {
   const [countryCode, setCountryCode] = useState(initial.countryCode)
   const [language, setLanguage] = useState<AppLanguage>(() => loadLanguage())
   const [timeFormat, setTimeFormat] = useState<TimeFormatPreference>(() => loadTimeFormatPreference())
+  const [savedCityTimeView, setSavedCityTimeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
   const [showSunnah, setShowSunnah] = useState(() => loadShowSunnah())
   const [savedCities] = useState(loadSavedCities)
   const [homeCityId, setHomeCityId] = useState(loadTravelDestinationId)
@@ -181,6 +196,7 @@ export default function Settings({ go }: Props) {
     const value = Number.parseInt(raw, 10)
     return Number.isFinite(value) ? Math.max(1, value) : 20
   })
+  const [secondReminder, setSecondReminder] = useState(() => loadSecondReminder(SETTINGS_SECOND_REMINDER_KEY))
   const [ishaTime, setIshaTime] = useState(() => readStorage(LS_ISHA_FIXED) || '22:00')
   const [fixedIshaEnabled, setFixedIshaEnabled] = useState(loadFixedIshaEnabled)
   const [jumuahReminder, setJumuahReminder] = useState<JumuahReminderSettings>(loadJumuahReminderSettings)
@@ -188,10 +204,12 @@ export default function Settings({ go }: Props) {
   const [message, setMessage] = useState('')
 
   const autoConfig = getCountryPrayerConfig(countryCode)
-  const effectiveSettings = calculationMode === 'auto'
-    ? settingsForCountry(countryCode)
-    : manualSettings
-
+  const selectedCalendarCity = savedCities.find((city) => city.id === homeCityId)
+  const calendarSourceLabel = homeCityId
+    ? selectedCalendarCity
+      ? `${selectedCalendarCity.name || selectedCalendarCity.city || 'Saved city'} · ${selectedCalendarCity.timezone || 'timezone needs resolution'}`
+      : 'Selected saved-city profile is missing'
+    : `Current device location · ${Intl.DateTimeFormat().resolvedOptions().timeZone || 'timezone unavailable'}`
   useEffect(() => {
     if (calculationMode !== 'auto') return
     saveSettings(settingsForCountry(countryCode))
@@ -322,49 +340,51 @@ export default function Settings({ go }: Props) {
     setSalahReminder(saveSalahReminderPreferences({ ...salahReminder, ...next }))
   }
 
-  async function exportIcs(days: number, label: string) {
-    const locationState = await refreshDeviceLocation()
-    if (!locationState.location) {
-      setMessage(t('locationPermissionRequired', language))
-      return
-    }
+  function updateSecondReminder(next: Partial<typeof secondReminder>) {
+    setSecondReminder(saveSecondReminder(SETTINGS_SECOND_REMINDER_KEY, { ...secondReminder, ...next }))
+  }
 
-    const base = new Date()
-    const all: SettingsCalendarItem[] = []
-    for (let dayIndex = 0; dayIndex < days; dayIndex += 1) {
-      const day = new Date(base)
-      day.setDate(day.getDate() + dayIndex)
-      const times = computePrayerTimes(
-        {
-          latitude: locationState.location.latitude,
-          longitude: locationState.location.longitude
-        },
-        day,
-        effectiveSettings
-      )
-      all.push(
-        { title: 'Fajr', when: times.fajr },
-        { title: 'Sunrise', when: times.sunrise },
-        { title: 'Dhuhr', when: times.dhuhr },
-        { title: 'Asr', when: times.asr },
-        { title: 'Maghrib', when: times.maghrib },
-        { title: 'Isha', when: times.isha }
-      )
-      all.push(...buildSettingsExtraReminderItems(day, {
+  async function exportIcs(days: number, label: string) {
+    try {
+      const source = await resolvePrimaryPrayerSource()
+      if (!source.timezone) {
+        throw new Error(`The timezone for ${source.locationLabel} is unavailable. Set or refresh this source's timezone before exporting.`)
+      }
+      const firstDate = sourceDateKey(source)
+      const dateKeys = Array.from({ length: days }, (_, index) => addDateKeyDays(firstDate, index))
+      const savedCorrections = source.savedCity?.calculationMode === 'custom-corrections'
+        ? correctionsForSavedCity(source.savedCity)
+        : null
+      const richSource = {
+        identity: source.savedCity?.id ?? `device-${source.latitude.toFixed(5)}-${source.longitude.toFixed(5)}`,
+        locationLabel: source.locationLabel,
+        sourceLabel: savedCorrections
+          ? `${source.sourceLabel}. Saved corrections: ${PRAYER_CORRECTION_KEYS.map((prayer) => `${prayer} ${formatSignedCorrection(savedCorrections[prayer])}`).join(', ')}`
+          : source.sourceLabel,
+        timezone: source.timezone,
+        settings: source.settings,
+        latitude: source.latitude,
+        longitude: source.longitude
+      }
+      const ics = buildSettingsRichCalendar({
+        source: richSource,
+        days: dateKeys.map((dateKey) => ({
+          dateKey,
+          times: prayerTimesForPrimarySourceDate(source, dateKey, { requireTimezone: true, requireTimetableRow: true })
+        })),
+        label,
+        reminderMinutes: Math.max(1, offsetMin),
+        secondReminder,
         fixedIshaEnabled,
         fixedIshaTime: ishaTime,
         jumuah: jumuahReminder,
         salahReview: salahReminder
-      }))
+      })
+      downloadICS(settingsRichFilename(richSource, label), ics)
+      setMessage(`${t('calendarDownloaded', language)} ${source.locationLabel} · ${source.timezone}`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not prepare this calendar export.')
     }
-
-    const effectiveOffset = Math.max(1, offsetMin)
-    const ics = buildIcsForDates(all, `Athan Reminders (${label})`, 'ATHAN-PWA', effectiveOffset)
-    downloadICS(
-      `athan-reminders-${label}_${locationState.location.latitude.toFixed(3)}_${locationState.location.longitude.toFixed(3)}.ics`,
-      ics
-    )
-    setMessage(t('calendarDownloaded', language))
   }
 
   function openBackupRestore() {
@@ -461,6 +481,35 @@ export default function Settings({ go }: Props) {
             >
               {t('openCityMode', language)}
             </button>
+          </div>
+        )}
+        {homeCityId && selectedCalendarCity && (
+          <div className="mt-4 rounded-md border border-gray-700 bg-gray-950/60 p-3">
+            <p className="text-sm font-medium text-gray-200">Prayer time display</p>
+            <div className="mt-2 grid grid-cols-3 rounded-md border border-gray-700 bg-gray-900 p-1" role="group" aria-label="Prayer time display zone">
+              {(['city', 'device', 'utc'] as const).map((view) => {
+                const disabled = !isValidTimezone(selectedCalendarCity.timezone) && view !== 'device'
+                const activeView = isValidTimezone(selectedCalendarCity.timezone) ? savedCityTimeView : 'device'
+                return (
+                  <button
+                    key={view}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={activeView === view}
+                    onClick={() => {
+                      setSavedCityTimeView(view)
+                      saveSavedCityTimeView(view)
+                    }}
+                    className={`min-h-10 rounded px-2 text-xs font-semibold transition sm:text-sm ${activeView === view ? 'bg-teal-700 text-white' : 'text-gray-300 hover:bg-gray-800'} disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
+                    {view === 'city' ? 'City time' : view === 'utc' ? 'UTC' : 'Device time'}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-gray-400">
+              Applies to Home and Prayer Times, including the monthly timetable. {isValidTimezone(selectedCalendarCity.timezone) ? `City time uses ${selectedCalendarCity.timezone}.` : 'City time and UTC are unavailable until this profile has a valid timezone.'}
+            </p>
           </div>
         )}
       </section>
@@ -587,6 +636,9 @@ export default function Settings({ go }: Props) {
         <div className="mb-4">
           <h2 className="font-semibold text-white">{t('calendarReminders', language)}</h2>
           <p className="mt-1 text-xs leading-5 text-gray-400">{t('calendarRemindersHelp', language)}</p>
+          <p className="mt-2 rounded-md border border-teal-900 bg-teal-950/30 px-3 py-2 text-xs text-teal-200">
+            Export source and timezone: {calendarSourceLabel}. Custom Isha, Jumu’ah, and Salah review times use this source’s local clock.
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -617,6 +669,39 @@ export default function Settings({ go }: Props) {
             />
             <span className="mt-2 block text-xs leading-5 text-gray-400">{t('fixedIshaHelp', language)}</span>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-md border border-gray-700 bg-gray-900 p-3">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+            <input
+              type="checkbox"
+              checked={secondReminder.enabled}
+              onChange={(event) => updateSecondReminder({ enabled: event.target.checked })}
+              className="h-4 w-4 accent-teal-600"
+            />
+            Second reminder for regular prayer-time events
+          </label>
+          {secondReminder.enabled && (
+            <label className="mt-3 block text-sm text-gray-300" htmlFor="settings-second-reminder">
+              Second alert
+              <select
+                id="settings-second-reminder"
+                className={selectClass}
+                value={secondReminder.minutesBefore}
+                onChange={(event) => updateSecondReminder({ minutesBefore: Number(event.target.value) })}
+              >
+                {REMINDER_OFFSETS.map((value) => (
+                  <option key={value} value={value}>{value} {t('minutes', language)} before</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {secondReminder.enabled && secondReminder.minutesBefore === offsetMin && (
+            <p className="mt-2 text-xs text-amber-200">Choose a different time for the second alert.</p>
+          )}
+          <p className="mt-2 text-xs leading-5 text-gray-400">
+            Applies to Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha. Optional custom reminders keep their current single alert.
+          </p>
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -665,6 +750,7 @@ export default function Settings({ go }: Props) {
             saveFixedIshaEnabled(fixedIshaEnabled)
             saveJumuahReminderSettings(jumuahReminder)
             saveSalahReminderPreferences(salahReminder)
+            saveSecondReminder(SETTINGS_SECOND_REMINDER_KEY, secondReminder)
             setMessage(t('reminderUpdated', language))
           }}
           className="mt-4 min-h-10 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-600"

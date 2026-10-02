@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateSalahPeriodInsights, normalizeSalahLogStore, type SalahLogStore } from './salahInsights'
+import { calculateSalahPeriodInsights, calculateSalahRangeInsights, normalizeSalahLogStore, type SalahLogStore } from './salahInsights'
 
 describe('normalizeSalahLogStore', () => {
   it('preserves completed, missed, Sunnah, daily notes, and legacy status values', () => {
@@ -67,5 +67,34 @@ describe('calculateSalahPeriodInsights', () => {
 
     expect(result.allFive).toEqual({ completedDays: 1, fullyLoggedDays: 2 })
     expect(result.mostImproved).toMatchObject({ prayer: 'Fajr', rateChange: 50, currentLogged: 3, previousLogged: 2 })
+  })
+})
+
+describe('selected ranges', () => {
+  const store: SalahLogStore = {
+    '2025-12-31': { Fajr: true },
+    '2026-01-01': { Fajr: false, Isha: true },
+    '2026-01-02': { Fajr: true, Isha: true },
+    '2026-02-01': { Fajr: true }
+  }
+
+  it('selects a calendar month through its last applicable day', () => {
+    const result = calculateSalahRangeInsights(store, { kind: 'month', month: '2026-01' }, new Date(2026, 1, 2))
+    expect(result.dayCount).toBe(31)
+    expect(result.daysWithLogs).toBe(2)
+    expect(result.prayers.Fajr).toMatchObject({ completed: 1, logged: 2, rate: 50, currentStreak: 0 })
+  })
+
+  it('uses inclusive custom dates across a year boundary', () => {
+    const result = calculateSalahRangeInsights(store, { kind: 'custom', from: '2025-12-31', to: '2026-01-02' }, new Date(2026, 0, 2))
+    expect(result.dayCount).toBe(3)
+    expect(result.prayers.Fajr).toMatchObject({ completed: 2, logged: 3, rate: 67, currentStreak: 1, longestStreak: 1 })
+    expect(result.prayers.Isha.logged).toBe(2)
+  })
+
+  it('caps an active custom range at today without counting future days', () => {
+    const result = calculateSalahRangeInsights(store, { kind: 'custom', from: '2026-01-01', to: '2026-02-01' }, new Date(2026, 0, 2))
+    expect(result.dayCount).toBe(2)
+    expect(result.prayers.Fajr.logged).toBe(2)
   })
 })

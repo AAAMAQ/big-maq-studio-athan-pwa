@@ -11,6 +11,9 @@ import Privacy from './features/Privacy'
 import Vision from './features/Vision'
 import NeedHelp from './features/NeedHelp'
 import SalahTracker from './features/SalahTracker'
+import SalahInsights from './features/SalahInsights'
+import SalahSearch from './features/SalahSearch'
+import SalahGraphs from './features/SalahGraphs'
 import AthanEngine from './features/AthanEngine'
 import Iqama from './features/Iqama'
 import More from './features/More'
@@ -30,6 +33,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('Home')
   const [screen, setScreen] = useState<Screen>('Home')
   const [history, setHistory] = useState<Screen[]>([])
+  const [trackerSelectedDate, setTrackerSelectedDate] = useState<string>()
   const [language, setLanguage] = useState<AppLanguage>(() => loadLanguage())
   const [sharedDefaults, setSharedDefaults] = useState<SharedDefaults | null>(() => (
     typeof window === 'undefined' ? null : parseSharedDefaultsUrl(window.location.href)
@@ -84,6 +88,11 @@ export default function App() {
     goTab('Home')
   }
 
+  const openTrackerDay = (date: string) => {
+    setTrackerSelectedDate(date)
+    go('SalahTracker')
+  }
+
   const screenLabels: Record<Screen, string> = {
     Home: t('home', language),
     Prayer: t('prayerTimes', language),
@@ -96,6 +105,9 @@ export default function App() {
     Vision: t('vision', language),
     NeedHelp: t('needHelp', language),
     SalahTracker: t('salahTracker', language),
+    SalahInsights: 'Salah Insights',
+    SalahSearch: 'Search Salah Progress',
+    SalahGraphs: 'Graph Insights',
     PrayerMonth: t('prayerTimes', language),
     AthanEngine: t('deepSearchAthan', language),
     Iqama: t('iqama', language),
@@ -144,7 +156,10 @@ export default function App() {
         {screen === 'Vision' && <Vision />}
         {screen === 'NeedHelp' && <NeedHelp />}
         {/* Optional future screens */} 
-        {screen === 'SalahTracker' && <SalahTracker />}
+        {screen === 'SalahTracker' && <SalahTracker go={go} initialDate={trackerSelectedDate} />}
+        {screen === 'SalahInsights' && <SalahInsights />}
+        {screen === 'SalahSearch' && <SalahSearch onOpenDay={openTrackerDay} />}
+        {screen === 'SalahGraphs' && <SalahGraphs onOpenDay={openTrackerDay} />}
         {screen === 'AthanEngine' && <AthanEngine go={go} />}
         {screen === 'Iqama' && <Iqama go={go} />}
         {screen === 'More' && <More go={go} />}

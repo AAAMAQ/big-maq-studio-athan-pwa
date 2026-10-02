@@ -3,18 +3,12 @@ import { useEffect, useState } from 'react'
 import type { Screen } from '../types/nav'
 import { formatHijri } from '../lib/hijri'
 import { loadLanguage, t, type AppLanguage } from '../lib/i18n'
-import { getPrimaryPrayerContext, loadPrimarySavedCity } from '../lib/primaryPrayerSource'
+import { formatPrimaryPrayerTime, getPrimaryPrayerContext, loadPrimarySavedCity, primaryTimeViewLabel, sourceDateKey } from '../lib/primaryPrayerSource'
 import { getRamadanDay, getRamadanStatus, loadRamadanSettings } from '../lib/ramadan'
-import { formatAppTime } from '../lib/preferences'
+import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
 import { getPrayerProgress, getPrayerWindow, type PrayerWindow } from '../lib/prayerWindow'
+import { dateKeyAnchor, sourceWeekday } from '../lib/sourceTime'
 
-
-const msUntilNextMidnight = () => {
-  const now = new Date()
-  const nextMidnight = new Date(now)
-  nextMidnight.setHours(24, 0, 0, 0)
-  return nextMidnight.getTime() - now.getTime()
-}
 
 export default function Home({ go }: { go: (tab: Screen) => void }) {
   const [language] = useState<AppLanguage>(() => loadLanguage())
@@ -23,33 +17,13 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
   const [locationLabel, setLocationLabel] = useState('Location not available')
   const [prayerWindow, setPrayerWindow] = useState<PrayerWindow | null>(null)
   const [prayerSchedule, setPrayerSchedule] = useState<Awaited<ReturnType<typeof getPrimaryPrayerContext>> | null>(null)
-  const [nextAt, setNextAt] = useState<string>('') // human local time for next prayer
+  const [timeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
   const [countdown, setCountdown] = useState('—:—:—')
   const [ramadanDay] = useState(() => {
     const settings = loadRamadanSettings()
     return getRamadanStatus(settings) === 'active' ? getRamadanDay(settings) : null
   })
-  const isFriday = new Date().getDay() === 5
-
-  // refresh hijri each mount and again at local midnight
-  useEffect(() => {
-    let midnightTimeout: ReturnType<typeof setTimeout> | null = null
-    let dailyInterval: ReturnType<typeof setInterval> | null = null
-
-    setHijri(formatHijri(new Date(), language))
-
-    midnightTimeout = setTimeout(() => {
-      setHijri(formatHijri(new Date(), language))
-      dailyInterval = setInterval(() => {
-        setHijri(formatHijri(new Date(), language))
-      }, 24 * 60 * 60 * 1000)
-    }, msUntilNextMidnight())
-
-    return () => {
-      if (midnightTimeout) clearTimeout(midnightTimeout)
-      if (dailyInterval) clearInterval(dailyInterval)
-    }
-  }, [language])
+  const isFriday = prayerSchedule ? sourceWeekday(prayerSchedule.dateKey) === 5 : new Date().getDay() === 5
   
 
   // Compute the active prayer source selected in Settings.
@@ -61,28 +35,31 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
         if (cancelled) return
         setLocationLabel(context.locationLabel)
         setPrayerSchedule(context)
+        setHijri(formatHijri(dateKeyAnchor(context.dateKey), language))
       } catch {
         if (!cancelled) setLocationLabel('Location not available')
         // silently ignore; UI will show dashes
       }
     })()
     return () => { cancelled = true }
-  }, [savedCity])
+  }, [savedCity, language])
 
   useEffect(() => {
     if (!prayerSchedule) return
     const updatePrayerWindow = () => {
       const window = getPrayerWindow(prayerSchedule.times, new Date(), prayerSchedule.nextFajr)
       setPrayerWindow(window)
-      setNextAt(formatAppTime(window.nextTime, {
-        hour: '2-digit',
-        timezone: prayerSchedule.savedCity?.timezone
-      }))
+      if (sourceDateKey(prayerSchedule, new Date()) !== prayerSchedule.dateKey) {
+        getPrimaryPrayerContext().then((context) => {
+          setPrayerSchedule(context)
+          setHijri(formatHijri(dateKeyAnchor(context.dateKey), language))
+        }).catch(() => { /* Keep the last known schedule visible. */ })
+      }
     }
     updatePrayerWindow()
     const interval = window.setInterval(updatePrayerWindow, 30_000)
     return () => window.clearInterval(interval)
-  }, [prayerSchedule])
+  }, [prayerSchedule, language])
 
   // live countdown
   useEffect(() => {
@@ -109,6 +86,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
       <div className="text-center">
         <h1 className="text-2xl font-bold">Athan App</h1>
         <p className="text-sm text-gray-300">{hijri}</p>
+        {prayerSchedule && <p className="mt-1 text-xs text-gray-500">{prayerSchedule.savedCity ? 'Saved city date' : 'Prayer source date'}: {prayerSchedule.dateKey}</p>}
         {isFriday && (
           <p className="mt-2 rounded-lg border border-teal-700 bg-teal-950/40 px-3 py-2 text-sm font-semibold text-teal-200">
             Jumu’ah Mubarak
@@ -117,6 +95,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
         <p className={`mt-1 text-sm ${savedCity ? 'font-semibold text-teal-300' : 'text-gray-400'}`}>
           {savedCity ? `Saved City: ${locationLabel}` : locationLabel}
         </p>
+        {prayerSchedule && <p className="mt-1 text-xs text-gray-400">{primaryTimeViewLabel(prayerSchedule, timeView)}</p>}
       </div>
 
       <section className="rounded-lg border border-gray-700 bg-gray-800 p-4" aria-labelledby="current-prayer-title">
@@ -128,7 +107,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-gray-400">Next: {prayerWindow?.nextName ?? '—'} {nextAt && `at ${nextAt}`}</div>
+            <div className="text-xs text-gray-400">Next: {prayerWindow?.nextName ?? '—'} {prayerWindow && prayerSchedule && `at ${formatPrimaryPrayerTime(prayerSchedule, prayerWindow.nextTime, timeView)}`}</div>
             <div className="font-mono text-lg text-teal-300" aria-live="polite">{countdown}</div>
           </div>
         </div>

@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { formatHijri } from '../lib/hijri'
 import { loadLanguage, t, type AppLanguage } from '../lib/i18n'
 import { nextPrayer } from '../lib/prayer'
-import { getPrimaryPrayerContext, loadPrimarySavedCity } from '../lib/primaryPrayerSource'
+import { formatPrimaryPrayerTime, getPrimaryPrayerContext, loadPrimarySavedCity, primaryTimeViewLabel, sourceDateKey, type PrimaryPrayerContext } from '../lib/primaryPrayerSource'
 import PrayerMonth from './PrayerMonth.tsx'
-import { formatAppTime } from '../lib/preferences'
+import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
+import { dateKeyAnchor, sourceWeekday } from '../lib/sourceTime'
 
 type PrayerKey = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'
 type PrayerTimesState = Partial<Record<PrayerKey, Date>>
@@ -22,7 +23,9 @@ export default function PrayerTimes() {
   const [locationLabel, setLocationLabel] = useState('Current device location')
   const [sourceLabel, setSourceLabel] = useState('')
   const [usesSavedCity, setUsesSavedCity] = useState(() => Boolean(loadPrimarySavedCity()))
-  const isFriday = new Date().getDay() === 5
+  const [context, setContext] = useState<PrimaryPrayerContext | null>(null)
+  const [timeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
+  const isFriday = context ? sourceWeekday(context.dateKey) === 5 : new Date().getDay() === 5
 
   const prayerLabels: Record<PrayerKey, string> = {
     fajr: t('fajr', language),
@@ -50,6 +53,7 @@ export default function PrayerTimes() {
       setLocationLabel(context.locationLabel)
       setSourceLabel(context.sourceLabel)
       setUsesSavedCity(Boolean(context.savedCity))
+      setContext(context)
       setLoading(false)
     })().catch(() => {
       if (!cancelled) {
@@ -61,6 +65,23 @@ export default function PrayerTimes() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!context) return
+    const update = () => {
+      if (sourceDateKey(context, new Date()) !== context.dateKey) {
+        getPrimaryPrayerContext().then((nextContext) => {
+          setContext(nextContext)
+          setTimes(nextContext.times)
+          setNext(nextPrayer(nextContext.times, new Date(), nextContext.nextFajr))
+        }).catch(() => { /* Keep the last known schedule visible. */ })
+      } else {
+        setNext(nextPrayer(context.times, new Date(), context.nextFajr))
+      }
+    }
+    const interval = window.setInterval(update, 30_000)
+    return () => window.clearInterval(interval)
+  }, [context])
 
   useEffect(() => {
     if (!next) return
@@ -98,10 +119,12 @@ export default function PrayerTimes() {
       <header className="px-1">
         <p className="text-xs font-semibold uppercase text-teal-400">Today</p>
         <h2 className="mt-1 text-2xl font-bold text-white">{t('prayerTimes', language)}</h2>
-        <p className="mt-1 text-sm text-gray-400">{formatHijri(new Date(), language)}</p>
+        <p className="mt-1 text-sm text-gray-400">{formatHijri(context ? dateKeyAnchor(context.dateKey) : new Date(), language)}</p>
+        {context && <p className="mt-1 text-xs text-gray-500">{context.savedCity ? 'Saved city date' : 'Prayer source date'}: {context.dateKey}</p>}
         <p className={`mt-1 text-xs ${usesSavedCity ? 'font-semibold text-teal-300' : 'text-gray-500'}`}>
           {usesSavedCity ? `Saved City: ${locationLabel}` : locationLabel}
         </p>
+        {context && <p className="mt-1 text-xs text-gray-400">{primaryTimeViewLabel(context, timeView)}</p>}
       </header>
 
       {next && nextKey && (
@@ -110,7 +133,7 @@ export default function PrayerTimes() {
             <div>
               <p className="text-xs font-semibold uppercase text-gray-400">Next Prayer</p>
               <h3 className="mt-1 text-2xl font-bold text-teal-300">{prayerLabels[nextKey]}</h3>
-              <p className="mt-1 text-sm text-gray-300">{formatAppTime(next.time)}</p>
+              <p className="mt-1 text-sm text-gray-300">{context ? formatPrimaryPrayerTime(context, next.time, timeView) : '—'}</p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500">Time remaining</p>
@@ -138,7 +161,7 @@ export default function PrayerTimes() {
                     {key === 'sunrise' && <p className="text-xs text-gray-500">Solar time</p>}
                   </div>
                   <time className={`text-lg font-semibold ${isNext ? 'text-teal-300' : 'text-gray-200'}`}>
-                    {time ? formatAppTime(time) : '—'}
+                    {time && context ? formatPrimaryPrayerTime(context, time, timeView) : '—'}
                   </time>
                 </div>
               )

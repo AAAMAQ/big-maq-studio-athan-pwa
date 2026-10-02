@@ -19,6 +19,9 @@ describe('shared defaults', () => {
     localStorage.setItem('salahLogV1', '{"private":"worship data"}')
     localStorage.setItem('athan.salah.reminder.v1', '{"enabled":true,"time":"20:30"}')
     localStorage.setItem('athan.calendar.fixedIsha.enabled.v1', 'false')
+    localStorage.setItem('athan.calendar.secondReminder.v1', '{"enabled":true,"minutesBefore":15}')
+    localStorage.setItem('athan.engine.secondReminder.v1', '{"enabled":true,"minutesBefore":25}')
+    localStorage.setItem('athan.preference.savedCityTimeView.v1', 'utc')
     localStorage.setItem('athan.iqama.jumuahReminder.v1', '{"include":true,"time":"09:30"}')
     localStorage.setItem('athan.ramadan.fasts.v1', '[{"private":true}]')
     localStorage.setItem('athan.quran.progress.v1', '{"lastReadAyah":7}')
@@ -38,6 +41,8 @@ describe('shared defaults', () => {
     expect(url).not.toContain('latitude')
     expect(JSON.stringify(parsed)).not.toContain('20:30')
     expect(JSON.stringify(parsed)).not.toContain('09:30')
+    expect(JSON.stringify(parsed)).not.toContain('minutesBefore')
+    expect(JSON.stringify(parsed)).not.toContain('savedCityTimeView')
     expect(Object.keys(parsed ?? {})).toEqual(['app', 'version', 'prayer', 'preferences', 'reminders'])
   })
 

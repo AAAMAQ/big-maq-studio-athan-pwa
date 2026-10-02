@@ -3,6 +3,10 @@ export type SalahLogStatus = 'completed' | 'missed' | 'not-logged'
 export type SalahDayLog = Partial<Record<SalahPrayerKey | 'Sunnah', boolean>> & { Notes?: string }
 export type SalahLogStore = Record<string, SalahDayLog>
 export type SalahPeriodKey = 'week' | 'month' | 'last-30' | 'all'
+export type SalahRangeSelection =
+  | { kind: 'preset'; period: SalahPeriodKey }
+  | { kind: 'month'; month: string }
+  | { kind: 'custom'; from: string; to: string }
 
 export const SALAH_PRAYERS: SalahPrayerKey[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
 
@@ -30,7 +34,7 @@ export type SalahTrendPoint = {
 }
 
 export type SalahPeriodInsights = {
-  period: SalahPeriodKey
+  period: SalahPeriodKey | 'selected-month' | 'custom'
   periodLabel: string
   rangeLabel: string
   start: Date
@@ -100,8 +104,16 @@ export function calculateSalahPeriodInsights(
   period: SalahPeriodKey,
   today = new Date()
 ): SalahPeriodInsights {
+  return calculateSalahRangeInsights(inputStore, { kind: 'preset', period }, today)
+}
+
+export function calculateSalahRangeInsights(
+  inputStore: SalahLogStore,
+  selection: SalahRangeSelection,
+  today = new Date()
+): SalahPeriodInsights {
   const store = normalizeSalahLogStore(inputStore)
-  const { start, end } = getPeriodRange(store, period, today)
+  const { start, end, label, period } = getSelectedRange(store, selection, today)
   const days = eachDay(start, end)
   const dayCount = days.length
   const daysWithLogs = days.filter((day) => hasObligatoryLog(store[ymd(day)])).length
@@ -110,11 +122,11 @@ export function calculateSalahPeriodInsights(
   for (const prayer of SALAH_PRAYERS) prayers[prayer] = prayerStatsForRange(store, prayer, days)
 
   const previousDays = eachDay(addDays(start, -dayCount), addDays(start, -1))
-  const trendInterval: 'week' | 'month' = period === 'all' && dayCount > 90 ? 'month' : 'week'
+  const trendInterval: 'week' | 'month' = dayCount > 90 ? 'month' : 'week'
 
   return {
     period,
-    periodLabel: SALAH_PERIOD_LABELS[period],
+    periodLabel: label,
     rangeLabel: formatRange(start, end),
     start,
     end,
@@ -128,6 +140,27 @@ export function calculateSalahPeriodInsights(
     trendInterval,
     trend: buildTrend(store, days, trendInterval)
   }
+}
+
+function getSelectedRange(store: SalahLogStore, selection: SalahRangeSelection, today: Date) {
+  const latest = startOfDay(today)
+  if (selection.kind === 'preset') {
+    const { start, end } = getPeriodRange(store, selection.period, today)
+    return { start, end, period: selection.period, label: SALAH_PERIOD_LABELS[selection.period] }
+  }
+  if (selection.kind === 'month') {
+    const match = /^(\d{4})-(\d{2})$/.exec(selection.month)
+    const start = match ? parseYmd(`${match[1]}-${match[2]}-01`) : null
+    if (!start || start > latest) throw new Error('Choose a month up to the current month.')
+    const monthEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    return { start, end: monthEnd > latest ? latest : monthEnd, period: 'selected-month' as const, label: 'Selected month' }
+  }
+  const start = parseYmd(selection.from)
+  const to = parseYmd(selection.to)
+  if (!start || !to || start > to || start > latest) throw new Error('Choose valid dates, from the first day through today.')
+  const end = to > latest ? latest : to
+  if (localDayNumber(end) - localDayNumber(start) > 3660) throw new Error('Choose a range of at most 10 years.')
+  return { start, end, period: 'custom' as const, label: 'Custom range' }
 }
 
 function prayerStatsForRange(store: SalahLogStore, prayer: SalahPrayerKey, days: Date[]): SalahPrayerStats {
@@ -317,6 +350,9 @@ function eachDay(from: Date, to: Date) {
   }
   return days
 }
+
+export function parseSalahDate(value: string): Date | null { return parseYmd(value) }
+export function formatSalahDate(date: Date): string { return ymd(date) }
 
 function parseYmd(value: string): Date | null {
   const match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
