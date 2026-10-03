@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchSurah, fetchSurahs } from '../lib/quran'
-import { loadQuranProgress, markAyahRead, toggleFavoriteSurah, type QuranProgress } from '../lib/quranProgress'
+import { completeSurah, loadQuranProgress, markAyahRead, toggleFavoriteSurah, type QuranProgress } from '../lib/quranProgress'
 import { isQuranTranslation, type QuranTranslation } from '../lib/quranProviders'
 import { formatAppTime } from '../lib/preferences'
 
@@ -101,11 +101,11 @@ export default function Quran({ go }: Props) {
   })
   const [panel, setPanel] = useState<HubPanel>(null)
   const [readerOpen, setReaderOpen] = useState(false)
+  const [loadedSurah, setLoadedSurah] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [dailyAyah, setDailyAyah] = useState<{ surah: SurahItem; arabic: string; english: string; ayah: number } | null>(null)
   const [pendingAyah, setPendingAyah] = useState<number | null>(null)
-  const readerTopRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchSurahs()
@@ -115,20 +115,28 @@ export default function Quran({ go }: Props) {
 
   useEffect(() => {
     setLoading(true)
+    setLoadedSurah(null)
     setLoadError('')
+    let active = true
     fetchSurah(selected, edition)
       .then((result) => {
+        if (!active) return
         setArabic(result.arabic)
         setEnglish(result.english)
         setBismillah(result.bismillah ?? null)
+        setLoadedSurah(selected)
       })
       .catch(() => {
+        if (!active) return
         setArabic([])
         setEnglish([])
         setBismillah(null)
         setLoadError('This Surah is not available offline yet. Connect and try again.')
       })
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
   }, [selected, edition])
 
   useEffect(() => {
@@ -150,11 +158,22 @@ export default function Quran({ go }: Props) {
   }, [edition, surahs])
 
   useEffect(() => {
-    if (!readerOpen || loading || pendingAyah === null) return
-    const target = document.getElementById(`ayah-${selected}-${pendingAyah}`)
-    window.setTimeout(() => target?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-    setPendingAyah(null)
-  }, [loading, pendingAyah, readerOpen, selected])
+    if (!readerOpen || loading || loadedSurah !== selected || pendingAyah === null) return
+    let firstFrame = 0
+    let secondFrame = 0
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(`ayah-${selected}-${pendingAyah}`)
+        if (!target) return
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setPendingAyah(null)
+      })
+    })
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      window.cancelAnimationFrame(secondFrame)
+    }
+  }, [loadedSurah, loading, pendingAyah, readerOpen, selected])
 
   const selectedSurah = surahs.find((surah) => surah.number === selected)
   const continueSurah = progress.lastReadSurah
@@ -209,12 +228,17 @@ export default function Quran({ go }: Props) {
     return [...surahMatches, ...ayahMatches]
   }, [english, searchQuery, selectedSurah, surahs])
 
-  function openReader(surah: number, ayah = 1) {
+  function openReader(surah: number, ayah?: number) {
+    const surahInfo = surahs.find((item) => item.number === surah)
+    const resumeAyah = ayah ?? progress.perSurahProgress[String(surah)]?.lastAyah ?? 1
+    const targetAyah = surahInfo
+      ? clamp(Math.round(resumeAyah), 1, surahInfo.numberOfAyahs)
+      : Math.max(1, Math.round(resumeAyah))
     setSelected(surah)
-    setPendingAyah(ayah)
+    setPendingAyah(targetAyah)
     setReaderOpen(true)
     setPanel(null)
-    window.setTimeout(() => readerTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20)
+    setShowOnlyBookmarks(false)
   }
 
   function continueReading() {
@@ -232,9 +256,16 @@ export default function Quran({ go }: Props) {
     try {
       localStorage.setItem(READ_AYAHS_KEY, JSON.stringify([...nextReadAyahs]))
     } catch {
-      // Keep the current reading session usable if browser storage is full.
+      // Keep this reading session usable if browser storage is full.
     }
-    setStatusMessage(`Saved Surah ${surah.englishName}, Ayah ${ayah} as last read.`)
+    setStatusMessage(`Last read saved: ${surah.englishName}, Ayah ${ayah}.`)
+  }
+
+  function recordSurahComplete() {
+    const surah = surahs.find((item) => item.number === selected)
+    if (!surah) return
+    setProgress(completeSurah(selected, surah.numberOfAyahs, surah.englishName))
+    setStatusMessage(`${surah.englishName} marked complete.`)
   }
 
   function toggleBookmark(surah: number, ayah: number) {
@@ -275,7 +306,7 @@ export default function Quran({ go }: Props) {
 
   if (readerOpen) {
     return (
-      <div ref={readerTopRef} className="mx-auto max-w-3xl space-y-4 pb-8">
+      <div className="mx-auto max-w-3xl space-y-4 pb-8">
         <header className="sticky top-0 z-10 -mx-2 flex items-center justify-between border-b border-gray-700/80 bg-gray-900/95 px-3 py-3 backdrop-blur">
           <button type="button" onClick={() => setReaderOpen(false)} className="rounded-md bg-gray-800 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700">
             ← Quran
@@ -309,9 +340,10 @@ export default function Quran({ go }: Props) {
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-800">
               <div className="h-full rounded-full bg-teal-400" style={{ width: `${percentFor(selectedProgress.lastAyah, selectedProgress.totalAyahs ?? selectedSurah?.numberOfAyahs)}%` }} />
             </div>
-            <span>Ayah {selectedProgress.lastAyah}</span>
+            <span>Last read · Ayah {selectedProgress.lastAyah}</span>
           </div>
         )}
+        {selectedProgress?.completedAt && <p className="text-xs text-teal-300">Completed {formatRecentDate(selectedProgress.completedAt)}</p>}
 
         {statusMessage && <p role="status" className="rounded-md border border-teal-700/40 bg-teal-950/30 px-3 py-2 text-sm text-teal-200">{statusMessage}</p>}
         {loadError && <p className="rounded-md border border-red-800/50 bg-red-950/30 p-3 text-sm text-red-200">{loadError}</p>}
@@ -326,7 +358,8 @@ export default function Quran({ go }: Props) {
             {visibleArabic.map((ayah) => {
               const translation = visibleEnglish.find((item) => item.number === ayah.number)
               const bookmarked = bookmarks.has(bookmarkKey(selected, ayah.number))
-              const read = readAyahs.has(bookmarkKey(selected, ayah.number))
+              const readBefore = readAyahs.has(bookmarkKey(selected, ayah.number))
+              const isLastRead = progress.lastReadSurah === selected && progress.lastReadAyah === ayah.number
               return (
                 <article key={ayah.number} id={`ayah-${selected}-${ayah.number}`} className="border-b border-gray-800 py-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
@@ -335,8 +368,8 @@ export default function Quran({ go }: Props) {
                       <button type="button" onClick={() => toggleBookmark(selected, ayah.number)} className={`h-9 w-9 rounded-md bg-gray-800 text-lg ${bookmarked ? 'text-yellow-300' : 'text-gray-400'}`} aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark Ayah'}>
                         {bookmarked ? '★' : '☆'}
                       </button>
-                      <button type="button" onClick={() => recordRead(ayah.number)} className={`rounded-md px-3 py-2 text-xs font-semibold transition ${read ? 'bg-teal-400 text-gray-950' : 'bg-teal-950/70 text-teal-100'}`}>
-                        {read ? 'Read ✓' : 'Mark read'}
+                      <button type="button" onClick={() => recordRead(ayah.number)} title={readBefore ? 'Read before' : undefined} aria-label={isLastRead ? 'Current last read Ayah' : `${readBefore ? 'Previously read. ' : ''}Set as last read`} className={`rounded-md px-3 py-2 text-xs font-semibold transition ${isLastRead ? 'bg-teal-400 text-gray-950' : 'bg-teal-950/70 text-teal-100'}`}>
+                        {isLastRead ? 'Last read ✓' : 'Set as last read'}
                       </button>
                     </div>
                   </div>
@@ -345,6 +378,14 @@ export default function Quran({ go }: Props) {
                 </article>
               )
             })}
+            {!showOnlyBookmarks && selectedSurah && (
+              <section className="border-t border-gray-700 pt-5" aria-label="Surah completion">
+                <p className="mb-3 text-center text-sm text-gray-400">Finished reading all {selectedSurah.numberOfAyahs} Ayahs?</p>
+                <button type="button" onClick={recordSurahComplete} className="w-full rounded-md border border-teal-700 bg-teal-950/50 px-4 py-3 text-sm font-semibold text-teal-100 transition hover:border-teal-400 hover:bg-teal-900/60">
+                  Complete Surah · {selectedSurah.englishName}
+                </button>
+              </section>
+            )}
           </div>
         )}
       </div>
@@ -472,7 +513,7 @@ export default function Quran({ go }: Props) {
           <div className="mt-3 space-y-1">
             {searchQuery && searchResults.length === 0 && <p className="py-4 text-center text-sm text-gray-400">No matching Surah or Ayah found.</p>}
             {searchResults.map((result) => (
-              <button key={`${result.type}-${result.surah.number}-${result.type === 'ayah' ? result.ayah : 0}`} type="button" onClick={() => openReader(result.surah.number, result.type === 'ayah' ? result.ayah : 1)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-700">
+              <button key={`${result.type}-${result.surah.number}-${result.type === 'ayah' ? result.ayah : 0}`} type="button" onClick={() => result.type === 'ayah' ? openReader(result.surah.number, result.ayah) : openReader(result.surah.number)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-gray-700">
                 <span className="text-sm text-white">{result.surah.number}. {result.surah.englishName}</span>
                 <span className="text-xs text-gray-400">{result.type === 'ayah' ? `Ayah ${result.ayah}` : `${result.surah.numberOfAyahs} Ayahs`}</span>
               </button>

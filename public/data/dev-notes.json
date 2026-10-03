@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-10-03-v3-3-2-quran-progress-dev-notes",
+    "date": "2026-10-03",
+    "version": "v3.3.2",
+    "title": "Quran reading progress and dedicated developer notes",
+    "summary": [
+      "Moved the growing release history out of Credits into a dedicated Developer Notes screen, keeping Credits focused while preserving the existing notes and release-history behavior.",
+      "Improved Quran reading progress so each Surah resumes at its saved verse, reading an already-read verse again updates the last-read position, and readers can explicitly mark a Surah complete from its end. Existing Quran progress remains locally stored."
+    ]
+  },
+  {
     "id": "2026-10-02-tracker-search-timezones-calendar-alerts",
     "date": "2026-10-02",
     "title": "Salah search, saved-city clock views, and optional second calendar alerts",

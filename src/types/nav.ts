@@ -12,6 +12,7 @@ export type Screen =
   | 'Quran'
   | 'QuranSettings'
   | 'Credits'
+  | 'DevNotes'
   | 'Privacy'
   | 'Vision'
   | 'NeedHelp'

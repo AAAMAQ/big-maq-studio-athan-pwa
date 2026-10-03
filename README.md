@@ -59,12 +59,11 @@ https://github.com/AAAMAQ/TEST-athan-pwa
 
 ## Current Version
 
-**v3.3.1**
+**v3.3.2**
 
-This version upgrades Salah Tracker with three-state obligatory prayer logging, private daily notes, verified
-streaks, period-based insights, and contextual summaries. It also unifies active calendar exports, groups optional
-fixed-Isha, Friday Jumu’ah, and privacy-safe Salah review reminders in Settings, and adds profile-based Iqama export
-to Masjid Mode while retaining the standalone Iqama Times screen.
+This version adds a dedicated Developer Notes screen and improves Quran reading progress with reliable
+last-read-verse resume and an explicit Complete Surah action. The v3.3.1 Salah Tracker insights, private daily notes,
+calendar exports, and Masjid-profile Iqama export remain available.
 
 ---
 

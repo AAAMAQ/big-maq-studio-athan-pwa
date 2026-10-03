@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { formatDevNoteDate, loadDevNotes, type DevNote } from '../lib/devNotes'
+import { useState } from 'react'
+import { formatDevNoteDate } from '../lib/devNotes'
 import { refreshAthanApp } from '../lib/pwa'
 import { ATHAN_RELEASE } from '../lib/release'
 import { createSharedDefaultsUrl } from '../lib/sharedDefaults'
@@ -12,28 +12,9 @@ type Props = {
 export default function Credits({ go, backTarget }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [updateStatus, setUpdateStatus] = useState('')
-  const [devNotes, setDevNotes] = useState<DevNote[]>([])
-  const [devNotesError, setDevNotesError] = useState('')
-  const [showAllNotes, setShowAllNotes] = useState(false)
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const buyMeACoffee = 'https://buymeacoffee.com/bigmaqstudio'
-  const visibleNotes = showAllNotes ? devNotes : devNotes.slice(0, 3)
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    loadDevNotes(controller.signal)
-      .then(setDevNotes)
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        console.error('Failed to load dev notes', error)
-        setDevNotesError('Release notes could not be loaded right now.')
-      })
-
-    return () => controller.abort()
-  }, [])
-
   async function shareApp(fallbackMessage = 'Link copied to clipboard.') {
     const shareData = {
       title: 'Athan PWA',
@@ -125,7 +106,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v3.3.1 adds accurate Salah insights, private daily notes, unified calendar exports, grouped Settings reminders, and Masjid-profile Iqama export."
+            value="v3.3.2 improves Quran reading progress with exact-verse resume and Complete Surah, and moves release history to a separate Developer Notes screen."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>
@@ -217,43 +198,20 @@ export default function Credits({ go, backTarget }: Props) {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-4">
+      <section className="flex flex-col gap-3 rounded-lg border border-gray-700 bg-gray-800 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Dev Notes</h2>
+          <h2 className="text-lg font-semibold">Developer Notes</h2>
           <p className="mt-1 text-sm text-gray-300">
-            Recent releases, fixes, and improvements. Detailed guidance remains available in Need Help.
+            Browse release updates, fixes, and improvements.
           </p>
         </div>
-
-        {devNotesError && <p role="alert" className="text-sm text-amber-300">{devNotesError}</p>}
-        {!devNotesError && devNotes.length === 0 && (
-          <p className="text-sm text-gray-400">Loading release notes…</p>
-        )}
-
-        <div className="space-y-4">
-          {visibleNotes.map((note) => (
-            <article key={note.id} className="space-y-2 border-l-2 border-teal-500 pl-3">
-              <p className="text-xs text-gray-400">{formatDevNoteDate(note.date)}</p>
-              <h3 className="font-semibold text-teal-300">
-                {note.version ? `${note.version} · ` : ''}{note.title}
-              </h3>
-              {note.summary.map((paragraph) => (
-                <p key={paragraph} className="text-sm leading-6 text-gray-200">{paragraph}</p>
-              ))}
-            </article>
-          ))}
-        </div>
-
-        {devNotes.length > 3 && (
-          <button
-            type="button"
-            onClick={() => setShowAllNotes((current) => !current)}
-            aria-expanded={showAllNotes}
-            className="rounded-md border border-teal-700 px-4 py-2 text-sm font-semibold text-teal-300 hover:bg-teal-950"
-          >
-            {showAllNotes ? 'Show Less' : 'Read More'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => goOrHash('DevNotes')}
+          className="min-h-11 shrink-0 rounded-md bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500"
+        >
+          View Developer Notes
+        </button>
       </section>
 
       <footer className="space-y-1 text-center text-xs text-gray-500">

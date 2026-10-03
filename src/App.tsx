@@ -7,6 +7,7 @@ import QuranSettings from './features/QuranSettings'
 import Settings from './features/Settings'
 import Home from './features/Home'
 import Credits from './features/Credits'
+import DevNotes from './features/DevNotes'
 import Privacy from './features/Privacy'
 import Vision from './features/Vision'
 import NeedHelp from './features/NeedHelp'
@@ -101,6 +102,7 @@ export default function App() {
     Quran: t('quran', language),
     QuranSettings: 'Quran Settings',
     Credits: t('credits', language),
+    DevNotes: 'Developer Notes',
     Privacy: t('privacy', language),
     Vision: t('vision', language),
     NeedHelp: t('needHelp', language),
@@ -152,6 +154,7 @@ export default function App() {
         {screen === 'Quran' && <Quran go={go} />}
         {screen === 'QuranSettings' && <QuranSettings />}
         {screen === 'Credits' && <Credits go={go} />}
+        {screen === 'DevNotes' && <DevNotes />}
         {screen === 'Privacy' && <Privacy />}
         {screen === 'Vision' && <Vision />}
         {screen === 'NeedHelp' && <NeedHelp />}

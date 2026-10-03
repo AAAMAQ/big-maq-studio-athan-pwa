@@ -6,6 +6,7 @@ export type QuranProgress = {
     lastAyah: number
     totalAyahs?: number
     progressPercent?: number
+    completedAt?: string
     updatedAt: string
   }>
   recentlyRead: Array<{
@@ -73,13 +74,52 @@ export function markAyahRead(surah: number, ayah: number, title?: string, totalA
     perSurahProgress: {
       ...current.perSurahProgress,
       [String(safeSurah)]: {
+        ...current.perSurahProgress[String(safeSurah)],
         lastAyah: safeAyah,
         totalAyahs,
         progressPercent,
+        completedAt: totalAyahs && safeAyah < totalAyahs
+          ? undefined
+          : current.perSurahProgress[String(safeSurah)]?.completedAt,
         updatedAt: now
       }
     },
     recentlyRead
+  }
+  saveQuranProgress(next)
+  return next
+}
+
+export function completeSurah(surah: number, totalAyahs: number, title?: string): QuranProgress {
+  const current = loadQuranProgress()
+  const now = new Date().toISOString()
+  const safeSurah = Math.max(1, Math.round(surah))
+  const safeTotalAyahs = Math.max(1, Math.round(totalAyahs))
+  const prior = current.perSurahProgress[String(safeSurah)]
+  const recent = {
+    surah: safeSurah,
+    ayah: safeTotalAyahs,
+    title,
+    surahName: title,
+    updatedAt: now
+  }
+  const next: QuranProgress = {
+    ...current,
+    lastReadSurah: safeSurah,
+    lastReadAyah: safeTotalAyahs,
+    updatedAt: now,
+    perSurahProgress: {
+      ...current.perSurahProgress,
+      [String(safeSurah)]: {
+        ...prior,
+        lastAyah: safeTotalAyahs,
+        totalAyahs: safeTotalAyahs,
+        progressPercent: 100,
+        completedAt: now,
+        updatedAt: now
+      }
+    },
+    recentlyRead: [recent, ...current.recentlyRead.filter((item) => item.surah !== safeSurah)].slice(0, 8)
   }
   saveQuranProgress(next)
   return next
@@ -131,7 +171,7 @@ function normalizeProgress(value: unknown): QuranProgress {
 function normalizePerSurahProgress(value: unknown): QuranProgress['perSurahProgress'] {
   if (!value || typeof value !== 'object') return {}
   const result: QuranProgress['perSurahProgress'] = {}
-  for (const [key, item] of Object.entries(value as Record<string, { lastAyah?: unknown; totalAyahs?: unknown; progressPercent?: unknown; updatedAt?: unknown }>)) {
+  for (const [key, item] of Object.entries(value as Record<string, { lastAyah?: unknown; totalAyahs?: unknown; progressPercent?: unknown; completedAt?: unknown; updatedAt?: unknown }>)) {
     const lastAyah = normalizeNumber(item.lastAyah)
     const totalAyahs = normalizeNumber(item.totalAyahs)
     const progressPercent = normalizeNumber(item.progressPercent)
@@ -140,6 +180,7 @@ function normalizePerSurahProgress(value: unknown): QuranProgress['perSurahProgr
       lastAyah,
       totalAyahs: totalAyahs ?? undefined,
       progressPercent: progressPercent ?? undefined,
+      completedAt: typeof item.completedAt === 'string' ? item.completedAt : undefined,
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString()
     }
   }
