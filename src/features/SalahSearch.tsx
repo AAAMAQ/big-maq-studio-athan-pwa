@@ -10,7 +10,10 @@ const EXAMPLES = [
   { query: '!2,!3', meaning: 'Dhuhr or Asr missed' },
   { query: '~1', meaning: 'Fajr not logged' },
   { query: '/5', meaning: 'Isha missed or not logged' },
-  { query: '1&(!2,!3)', meaning: 'Fajr completed and Dhuhr or Asr missed' }
+  { query: '1&(!2,!3)', meaning: 'Fajr completed and Dhuhr or Asr missed' },
+  { query: 'Oct.30', meaning: 'October 30 in any year' },
+  { query: '27d.5m.26y', meaning: 'May 27, 2026' },
+  { query: '(Jun.26y)&fajr', meaning: 'June 2026, Fajr completed' }
 ]
 
 export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) => void }) {
@@ -29,12 +32,13 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-4">
-      <header><h1 className="text-2xl font-bold">Search Salah Progress</h1><p className="mt-1 text-sm text-gray-400">Find days by the five obligatory prayers you logged.</p></header>
+      <header><h1 className="text-2xl font-bold">Search Salah Progress</h1><p className="mt-1 text-sm text-gray-400">Find days by date and the five obligatory prayers you logged.</p></header>
       <section className="rounded-lg bg-gray-800 p-4 space-y-3">
         <label className="block text-sm font-semibold">Search days
-          <input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(60) }} placeholder="Try fajr&dhuhr or [1&2]" autoComplete="off" spellCheck={false} aria-describedby="search-help" className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:border-teal-500 focus:outline-none" />
+          <input type="search" value={query} onChange={(event) => { setQuery(event.target.value); setVisibleCount(60) }} placeholder="Try Oct.30, 6m.26y, or fajr&dhuhr" autoComplete="off" spellCheck={false} aria-describedby="search-help search-date-help" className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:border-teal-500 focus:outline-none" />
         </label>
         <p id="search-help" className="text-xs leading-5 text-gray-400">1 Fajr · 2 Dhuhr · 3 Asr · 4 Maghrib · 5 Isha. A name or number means completed; ! means missed; ~ means not logged; / means missed or not logged. Use &amp; for both, comma or semicolon for either, parentheses to group, and [ ] for only the listed prayers completed.</p>
+        <p id="search-date-help" className="text-xs leading-5 text-gray-400">Dates use dots in any order: 2026y.6m.23d. June, Jun, and 6m are equivalent; 26y means 2026 (2000–2099 for two-digit years). Label two parts to infer the third: 10m.23d.26 or 10.23d.2026y. Oct.23 always means October 23. Partial dates such as 5m or 5m.26y also work. Group the date before combining prayers: (23d.06m.2026y)&amp;fajr.</p>
         <div className="flex flex-wrap gap-2" aria-label="Search examples">
           {EXAMPLES.map((example) => <button key={example.query} type="button" onClick={() => setQuery(example.query)} className="rounded border border-gray-700 bg-gray-900 px-2 py-1 text-left text-xs text-teal-300 hover:border-teal-500"><span className="block font-semibold">{example.query}</span><span className="block text-gray-400">{example.meaning}</span></button>)}
         </div>

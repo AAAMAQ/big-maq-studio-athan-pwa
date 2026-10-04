@@ -301,6 +301,11 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         <h2 className="text-xl font-semibold">Qibla not working or feels inaccurate?</h2>
         <QiblaStatusPanel />
         <p className="text-gray-200 text-sm">
+          Opening Qibla automatically looks for your device location and starts the compass. If location fails,
+          allow location access and tap Enable Location to retry. On iPhone, previously granted motion access is
+          reused when possible; Safari may still require a tap on Enable Compass for a new permission grant.
+        </p>
+        <p className="text-gray-200 text-sm">
           In this web app, the <span className="font-semibold">Qibla screen</span> shows the angle from your
           location to the Kaaba, for example: <span className="italic">“🕋 257° from True North”</span>. The arrow
           on the screen is rotated to this angle. To face the Qibla, you align your body so that the 
@@ -892,7 +897,23 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           <li><code>[1&amp;2]</code> finds days when only those two were completed; other prayers may be missed or unlogged.</li>
           <li><code>!2,!3</code> finds days when Dhuhr or Asr was explicitly missed.</li>
           <li><code>1&amp;(!2,!3)</code> finds days when Fajr was completed and either Dhuhr or Asr was missed.</li>
+          <li><code>Oct.30</code> finds October 30 across all recorded years.</li>
+          <li><code>2026y.6m.23d</code>, <code>6m.2026y.23d</code>, and <code>23d.Jun.26y</code> all find June 23, 2026.</li>
+          <li><code>5m</code> finds May in any year; <code>5m.26y</code> finds May 2026; <code>2026y</code> finds recorded dates throughout 2026.</li>
+          <li><code>10m.23d.26</code> and <code>10.23d.2026y</code> infer the missing label and both find October 23, 2026.</li>
+          <li><code>(23d.06m.2026y)&amp;fajr</code> finds June 23, 2026 if Fajr was completed.</li>
+          <li><code>(Jun.26y)&amp;fajr</code> finds June 2026 days when Fajr was completed.</li>
         </ul>
+        <p className="text-sm text-gray-200">
+          Join date parts with a dot in any order. June, Jun, and 6m are equivalent, and month names are not case-sensitive.
+          Use d for day, m for month, and y for year; two-digit years mean 2000–2099. When two parts are identified,
+          the third number can omit its label. Month names identify the month too. The special two-part form Oct.23
+          means October 23 in any year, never October 2023. Other unlabeled, ambiguous date formats show an error.
+          Put the date in parentheses before combining it with prayer filters, such as (Jun.26y)&amp;!fajr.
+          Searches use recorded days through
+          today by default. Enable the date-range option to include days with no records. Invalid dates, such as February 30,
+          show an error rather than changing your records.
+        </p>
         <p className="text-xs text-gray-400">
           A missed prayer is a recorded status. A prayer left unlogged is unknown and is never counted as missed.
           Search, notes, and graphs stay on your device.

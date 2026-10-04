@@ -83,6 +83,7 @@ export default function Qibla({ go }: Props) {
   const [locationLabel, setLocationLabel] = useState('Finding location…')
   const [status, setStatus] = useState('Finding your location…')
   const [locationStatus, setLocationStatus] = useState<PermissionStatusText>('unknown')
+  const [locationAttempt, setLocationAttempt] = useState(0)
   const [compassStatus, setCompassStatus] = useState<PermissionStatusText>('unknown')
   const [needsCompassPermission, setNeedsCompassPermission] = useState(false)
   const [compassEnabled, setCompassEnabled] = useState(false)
@@ -90,6 +91,7 @@ export default function Qibla({ go }: Props) {
   const [compassDetail, setCompassDetail] = useState('Waiting for an absolute compass heading.')
   const alignedRef = useRef(false)
   const watchIdRef = useRef<number | null>(null)
+  const compassReadingRef = useRef(false)
 
   useEffect(() => {
     try {
@@ -109,13 +111,26 @@ export default function Qibla({ go }: Props) {
 
   useEffect(() => {
     const cancelled = { current: false }
+    setLocationStatus('unknown')
+    setLocationLabel('Finding location…')
+    setStatus('Finding your location…')
+    setBearing(null)
+    setDistanceKm(null)
 
     async function initLocation() {
       try {
-        const locState = await refreshDeviceLocation()
-        if (!locState.location) {
+        if (!('geolocation' in navigator)) {
+          setLocationStatus('unavailable')
+          setLocationLabel('Location unavailable')
+          setStatus('Location is unavailable in this browser.')
+          return
+        }
+        const locState = await refreshDeviceLocation({ allowCachedFallback: false })
+        if (cancelled.current) return
+        if (!locState.location || locState.permission !== 'granted') {
           setLocationStatus('denied')
-          setStatus('Location unavailable. Please allow location access.')
+          setLocationLabel('Location unavailable')
+          setStatus('Could not get your location. Allow location access and tap Enable Location to try again.')
           return
         }
 
@@ -157,13 +172,19 @@ export default function Qibla({ go }: Props) {
               if (cancelled.current) return
               updateFromCoords(pos.coords.latitude, pos.coords.longitude)
             },
-            () => setLocationStatus('denied'),
+            () => {
+              if (cancelled.current) return
+              setLocationStatus('denied')
+              setStatus('Could not update your location. Tap Enable Location to try again.')
+            },
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
           )
         }
       } catch {
+        if (cancelled.current) return
         setLocationStatus('denied')
-        setStatus('Could not access location. Check browser permissions.')
+        setLocationLabel('Location unavailable')
+        setStatus('Could not access location. Check browser permissions and tap Enable Location to try again.')
       }
     }
 
@@ -175,20 +196,42 @@ export default function Qibla({ go }: Props) {
       }
       watchIdRef.current = null
     }
-  }, [])
+  }, [locationAttempt])
 
   useEffect(() => {
+    let active = true
     const needsPermission = !!(window.DeviceOrientationEvent &&
       typeof window.DeviceOrientationEvent.requestPermission === 'function')
-    setNeedsCompassPermission(needsPermission)
-
     if (!isQiblaCompassSupported()) {
       setCompassStatus('unavailable')
       setCompassDetail('Compass sensors are not available in this browser. Use the numeric Qibla bearing.')
       return
     }
 
-    if (!needsPermission) setCompassEnabled(true)
+    // Attach the listener on every visit so an already-authorized iPhone can
+    // immediately deliver headings without another button press.
+    setCompassEnabled(true)
+    if (needsPermission) {
+      async function reuseCompassPermission() {
+        try {
+          const permission = await window.DeviceOrientationEvent.requestPermission!()
+          if (!active || compassReadingRef.current) return
+          setNeedsCompassPermission(permission !== 'granted')
+          if (permission !== 'granted') {
+            setCompassStatus('denied')
+            setCompassDetail('Tap Enable Compass to allow motion access.')
+          }
+        } catch {
+          if (!active || compassReadingRef.current) return
+          // Safari requires a tap for a new permission grant. Keep the manual
+          // action as a fallback while listening for existing authorization.
+          setNeedsCompassPermission(true)
+          setCompassDetail('Tap Enable Compass if the direction does not appear.')
+        }
+      }
+      void reuseCompassPermission()
+    }
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -196,13 +239,16 @@ export default function Qibla({ go }: Props) {
 
     const controller = startQiblaCompassEngine({
       onReading(reading) {
+        compassReadingRef.current = true
         setHeading(reading.heading)
         setHeadingSource(reading.source)
         setCompassStatus('granted')
+        setNeedsCompassPermission(false)
         setCompassDetail(`${qiblaHeadingSourceLabel(reading.source)} ready. Hold the phone flat and away from magnets or metal.`)
       },
       onUnavailable(detail) {
         setCompassStatus('unavailable')
+        setNeedsCompassPermission(typeof window.DeviceOrientationEvent?.requestPermission === 'function')
         setCompassDetail(detail)
       }
     })
@@ -250,6 +296,7 @@ export default function Qibla({ go }: Props) {
     try {
       const permission = await window.DeviceOrientationEvent?.requestPermission?.()
       if (permission === 'granted') {
+        setNeedsCompassPermission(false)
         setCompassStatus('unknown')
         setCompassDetail('Motion access granted. Waiting for an absolute compass heading.')
         setCompassEnabled(true)
@@ -271,7 +318,7 @@ export default function Qibla({ go }: Props) {
     else window.location.hash = '#qibla'
   }
 
-  const displayStatus = locationStatus === 'denied' ? status : compassDetail
+  const displayStatus = locationStatus === 'granted' ? compassDetail : status
 
   return (
     <div className="mx-auto max-w-3xl p-2 space-y-4">
@@ -293,6 +340,15 @@ export default function Qibla({ go }: Props) {
           {mode === 'advanced' ? '✓ ' : ''}Advanced
         </button>
       </div>
+
+      {(locationStatus === 'denied' || locationStatus === 'unavailable') && (
+        <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+          <p role="status" className="mb-3 text-sm text-gray-300">{status}</p>
+          <button type="button" onClick={() => setLocationAttempt((attempt) => attempt + 1)} className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-600">
+            Enable Location
+          </button>
+        </div>
+      )}
 
       {mode === 'simple' ? (
         <SimpleQibla
@@ -408,7 +464,7 @@ function SimpleQibla({
             {instruction.muted} <span className="text-teal-300">{instruction.strong}</span>
           </p>
           <p className="mt-2 text-sm text-gray-300">
-            {bearing !== null ? `Qibla ${bearing.toFixed(1)}°` : 'Qibla bearing loading'}
+            {bearing !== null ? `Qibla ${bearing.toFixed(1)}°` : 'Qibla bearing appears after location is available'}
             {heading !== null ? ` · Heading ${heading.toFixed(0)}°` : ''}
           </p>
           <p className="text-xs text-gray-500">{qiblaHeadingSourceLabel(headingSource)}</p>
@@ -475,7 +531,7 @@ function AdvancedQibla({
       <h2 className="text-2xl font-bold">Qibla Direction</h2>
 
       {bearing === null ? (
-        <p>Calculating location…</p>
+        <p role="status">{status}</p>
       ) : (
         <>
           <p>

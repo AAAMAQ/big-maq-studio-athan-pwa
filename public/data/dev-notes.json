@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-04-v3-3-3-search-qibla",
+    "date": "2026-10-04",
+    "version": "v3.3.3",
+    "title": "Search additions and Qibla fixes",
+    "summary": [
+      "Added date searches to Search Salah Progress. Dot-separated year, month, and day parts work in any order: 2026y.6m.23d and 23d.Jun.26y find the same day. English month names and abbreviations are aliases; when two parts are identified, the third number can omit its label, so 10m.23d.26 and 10.23d.2026y both mean October 23, 2026. Oct.23 always means October 23 across years. Partial dates such as 5m, 5m.26y, or 2026y work too, and grouped dates can be combined with prayer filters, such as (23d.06m.2026y)&fajr. Two-digit years mean 2000–2099; impossible or ambiguous dates and duplicate parts show clear errors.",
+      "Qibla now starts the compass automatically when opened and attempts to reuse already-granted iPhone motion permission. Device location is requested automatically, with Enable Location available after a failed request. Enable Compass remains available when Safari requires a tap or the compass cannot start. Stale cached coordinates are not treated as a successful fresh Qibla location request, and leaving the screen cleans up its location watch and compass listener.",
+      "Kept date searches and Salah records private on the device, preserved the existing prayer search operators and date-range behavior, and updated the search examples and Help instructions."
+    ]
+  },
+  {
     "id": "2026-10-03-v3-3-2-quran-progress-dev-notes",
     "date": "2026-10-03",
     "version": "v3.3.2",

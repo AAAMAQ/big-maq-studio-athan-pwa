@@ -47,10 +47,10 @@ export function getLocationState(): LocationState {
   return memoryState
 }
 
-export async function refreshDeviceLocation(): Promise<LocationState> {
+export async function refreshDeviceLocation(options: { allowCachedFallback?: boolean } = {}): Promise<LocationState> {
   setState({ ...memoryState, loading: true, error: '' })
   try {
-    const loc = await getUserLocation()
+    const loc = await getUserLocation(options)
     if (!loc) {
       setState({ ...memoryState, loading: false, permission: 'denied', error: 'Location permission was not granted.' })
       return memoryState

@@ -59,11 +59,12 @@ https://github.com/AAAMAQ/TEST-athan-pwa
 
 ## Current Version
 
-**v3.3.2**
+**v3.3.3 — Search additions and Qibla fixes**
 
-This version adds a dedicated Developer Notes screen and improves Quran reading progress with reliable
-last-read-verse resume and an explicit Complete Surah action. The v3.3.1 Salah Tracker insights, private daily notes,
-calendar exports, and Masjid-profile Iqama export remain available.
+This version adds flexible date filters to Search Salah Progress and automatically starts Qibla location and
+compass access when opened, reusing granted iPhone permissions where available and offering retry controls when
+needed. Quran reading progress, the dedicated Developer Notes screen, and existing tracker and calendar features
+remain available.
 
 ---
 
@@ -203,6 +204,7 @@ Features include:
 - Graph Insights includes per-prayer completion bars plus an accessible weekly/monthly line trend with logged-data gaps
 - Month selection and custom date ranges for insights
 - Search by prayer name or 1–5 alias, with `!` for Missed, `~` for Not logged, `/` for either, `&` for AND, comma for OR, parentheses for grouping, and `[1&2]` for an exact set of completed prayers
+- Date searches accept dot-separated parts in any order: `2026y.6m.23d`, `23d.Jun.26y`, and `June.23.2026y` identify the same day. `Oct.30` matches October 30 across years, `5m` matches any May, and `5m.26y` matches May 2026. Two-digit years mean 2000–2099. When two parts are identified, the third label can be inferred: `10m.23d.26` and `10.23d.2026y` both mean October 23, 2026. Group dates before combining prayer filters, such as `(23d.06m.2026y)&fajr`
 - Per-prayer completed/logged rates and verified current/longest streaks
 - Contextual consistency, improvement, complete-day, weekday, and trend summaries
 

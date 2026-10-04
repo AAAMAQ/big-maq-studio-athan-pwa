@@ -236,7 +236,7 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
 
       <section aria-label="Explore Salah Tracker" className="grid gap-3 sm:grid-cols-3">
         <ExploreButton title="Insights" description="Rates, streaks, and summaries" onClick={() => go('SalahInsights')} />
-        <ExploreButton title="Search Salah Progress" description="Find days by prayer status" onClick={() => go('SalahSearch')} />
+        <ExploreButton title="Search Salah Progress" description="Find days by date and prayer status" onClick={() => go('SalahSearch')} />
         <ExploreButton title="Graph Insights" description="See logged patterns visually" onClick={() => go('SalahGraphs')} />
       </section>
     </div>

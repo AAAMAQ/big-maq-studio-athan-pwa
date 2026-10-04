@@ -106,7 +106,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v3.3.2 improves Quran reading progress with exact-verse resume and Complete Surah, and moves release history to a separate Developer Notes screen."
+            value="v3.3.3 — Search additions and Qibla fixes: flexible date searches for Salah progress, automatic Qibla startup, and permission retry controls."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>
