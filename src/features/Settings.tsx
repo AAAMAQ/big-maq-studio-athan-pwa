@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import PwaStatus from '../components/PwaStatus'
+import SettingsSection from '../components/SettingsSection'
+import { APP_LAYOUT_EVENT, loadAppLayout, saveAppLayout } from '../lib/appLayout'
+import { loadPerformancePreferences, savePerformancePreferences } from '../lib/performancePreferences'
 import {
   COUNTRY_PRAYER_CONFIGS,
   detectCountryCode,
@@ -202,6 +205,14 @@ export default function Settings({ go }: Props) {
   const [jumuahReminder, setJumuahReminder] = useState<JumuahReminderSettings>(loadJumuahReminderSettings)
   const [salahReminder, setSalahReminder] = useState<SalahReminderPreferences>(loadSalahReminderPreferences)
   const [message, setMessage] = useState('')
+  const [layout, setLayout] = useState(loadAppLayout)
+  const [performance, setPerformance] = useState(loadPerformancePreferences)
+  useEffect(() => {
+    const refresh = () => { setLayout(loadAppLayout()); setPerformance(loadPerformancePreferences()) }
+    window.addEventListener(APP_LAYOUT_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => { window.removeEventListener(APP_LAYOUT_EVENT, refresh); window.removeEventListener('storage', refresh) }
+  }, [])
 
   const autoConfig = getCountryPrayerConfig(countryCode)
   const selectedCalendarCity = savedCities.find((city) => city.id === homeCityId)
@@ -393,7 +404,6 @@ export default function Settings({ go }: Props) {
   }
 
   const selectClass = 'mt-2 w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-3 text-sm text-gray-100 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20'
-  const sectionClass = 'rounded-lg border border-gray-700/80 bg-gray-800/90 p-4 shadow-sm sm:p-5'
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-6">
@@ -402,9 +412,8 @@ export default function Settings({ go }: Props) {
         <p className="text-sm text-gray-400">{t('settingsSubtitle', language)}</p>
       </header>
 
-      <section className={sectionClass}>
+      <SettingsSection id="preferences" title={t('languageAndLayout', language)}>
         <div className="mb-4">
-          <h2 className="font-semibold text-white">{t('languageAndLayout', language)}</h2>
           <p className="mt-1 text-xs leading-5 text-gray-400">{t('preferencesHelp', language)}</p>
         </div>
         <label className="block text-sm font-medium text-gray-300" htmlFor="app-language">
@@ -448,11 +457,10 @@ export default function Settings({ go }: Props) {
             <span className="mt-1 block text-xs leading-5 text-gray-400">{t('showSunnahHelp', language)}</span>
           </span>
         </label>
-      </section>
+      </SettingsSection>
 
-      <section className={sectionClass}>
+      <SettingsSection id="source" title={t('homePrayerSource', language)}>
         <div>
-          <h2 className="font-semibold text-white">{t('homePrayerSource', language)}</h2>
           <p className="mt-1 text-xs leading-5 text-gray-400">{t('homePrayerSourceHelp', language)}</p>
         </div>
         <label className="mt-4 block text-sm font-medium text-gray-300" htmlFor="home-prayer-source">
@@ -512,11 +520,10 @@ export default function Settings({ go }: Props) {
             </p>
           </div>
         )}
-      </section>
+      </SettingsSection>
 
-      <section className={sectionClass}>
+      <SettingsSection id="calculation" title={t('prayerCalculation', language)}>
         <div className="mb-4">
-          <h2 className="font-semibold text-white">{t('prayerCalculation', language)}</h2>
           <p className="mt-1 text-xs leading-5 text-gray-400">{t('prayerCalculationHelp', language)}</p>
         </div>
 
@@ -630,11 +637,10 @@ export default function Settings({ go }: Props) {
           </div>
         )}
         <p className="mt-4 text-xs leading-5 text-amber-200/80">{t('regionalGuidance', language)}</p>
-      </section>
+      </SettingsSection>
 
-      <section className={sectionClass}>
+      <SettingsSection id="calendar" title={t('calendarReminders', language)}>
         <div className="mb-4">
-          <h2 className="font-semibold text-white">{t('calendarReminders', language)}</h2>
           <p className="mt-1 text-xs leading-5 text-gray-400">{t('calendarRemindersHelp', language)}</p>
           <p className="mt-2 rounded-md border border-teal-900 bg-teal-950/30 px-3 py-2 text-xs text-teal-200">
             Export source and timezone: {calendarSourceLabel}. Custom Isha, Jumu’ah, and Salah review times use this source’s local clock.
@@ -766,10 +772,9 @@ export default function Settings({ go }: Props) {
         </div>
         <p className="mt-3 text-xs leading-5 text-gray-400">{t('calendarTestHelp', language)}</p>
         <p className="text-xs leading-5 text-gray-400">{t('calendarTravelHelp', language)}</p>
-      </section>
+      </SettingsSection>
 
-      <section className={sectionClass}>
-        <h2 className="font-semibold text-white">{t('localData', language)}</h2>
+      <SettingsSection id="data" title={t('localData', language)}>
         <p className="mt-1 text-xs leading-5 text-gray-400">{t('localDataHelp', language)}</p>
         <button
           type="button"
@@ -778,7 +783,23 @@ export default function Settings({ go }: Props) {
         >
           {t('backupRestore', language)}
         </button>
-      </section>
+      </SettingsSection>
+
+      <SettingsSection id="layout" title="Performance & App Layout">
+        <p className="text-xs leading-5 text-gray-400">Optional and independent. Keep the standard experience, or choose internal performance improvements and your own shortcuts. All features and records remain available.</p>
+        <label className="mt-3 flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-teal-600" checked={layout.enabled} onChange={(event) => {
+          const next = { ...loadAppLayout(), enabled: event.target.checked }
+          if (saveAppLayout(next)) { setLayout(next); setMessage('Custom Layout preference saved.') }
+          else setMessage('Custom Layout preference could not be saved.')
+        }} />Custom Layout</label>
+        <label className="mt-2 flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" className="h-5 w-5 accent-teal-600" checked={performance.enabled} onChange={(event) => {
+          const next = { ...loadPerformancePreferences(), enabled: event.target.checked }
+          if (savePerformancePreferences(next)) { setPerformance(next); setMessage('Performance Mode preference saved.') }
+          else setMessage('Performance Mode preference could not be saved.')
+        }} />Performance Mode</label>
+        <p className="mt-2 text-xs leading-5 text-gray-400">Performance Mode changes loading only, not appearance, animations, features, or calculations. Collapsing Settings sections is not deep sleep.</p>
+        <div className="mt-4 flex flex-wrap gap-2"><button type="button" className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold hover:bg-teal-600" onClick={() => go ? go('AppLayout') : (window.location.hash = '#AppLayout')}>Edit layout & feature priorities</button><button type="button" className="min-h-11 rounded-md border border-gray-600 px-4 text-sm font-semibold hover:bg-gray-700" onClick={() => go ? go('FeatureHub') : (window.location.hash = '#FeatureHub')}>Feature Hub — all features</button></div>
+      </SettingsSection>
 
       <PwaStatus language={language} />
 

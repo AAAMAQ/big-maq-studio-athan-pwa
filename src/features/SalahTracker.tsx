@@ -5,12 +5,12 @@ import {
   getSalahStatus,
   parseSalahDate,
   SALAH_PRAYERS,
+  summarizeSalahDay,
   type SalahDayLog,
   type SalahLogStatus,
-  type SalahLogStore,
   type SalahPrayerKey
 } from '../lib/salahInsights'
-import { loadSalahStore, saveSalahStore } from '../lib/salahStore'
+import { useSalahData } from '../lib/useSalahData'
 import { formatAppTime, loadShowSunnah } from '../lib/preferences'
 
 function pad2(n: number) { return n.toString().padStart(2, '0') }
@@ -38,12 +38,11 @@ function monthMatrix(forMonth: Date) {
 }
 
 export default function SalahTracker({ go, initialDate }: { go: (screen: string) => void; initialDate?: string }) {
-  const [store, setStore] = useState<SalahLogStore>(loadSalahStore)
+  const { store, updateStore: setStore, storageError, todayKey } = useSalahData()
   const [month, setMonth] = useState<Date>(() => startOfMonth(initialDate ? parseSalahDate(initialDate) ?? new Date() : new Date()))
   const [selected, setSelected] = useState<Date>(() => initialDate ? parseSalahDate(initialDate) ?? new Date() : new Date())
   const [todayTimes, setTodayTimes] = useState<Partial<Record<SalahPrayerKey, string>>>({})
   const [showSunnah] = useState(loadShowSunnah)
-  useEffect(() => { saveSalahStore(store) }, [store])
 
   useEffect(() => {
     let cancelled = false
@@ -64,7 +63,7 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
   const { matrix, monthFirst } = useMemo(() => monthMatrix(month), [month])
   const selectedKey = ymd(selected)
   const dayLog = store[selectedKey] || {}
-  const daySummary = summarizeDay(dayLog)
+  const daySummary = summarizeSalahDay(dayLog)
 
   function setPrayerStatus(prayer: SalahPrayerKey, status: SalahLogStatus) {
     setStore((current) => {
@@ -138,6 +137,7 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
         <h1 className="text-2xl font-bold">Track Salah</h1>
         <p className="mt-1 text-sm text-gray-400">Private daily logging stored only on this device.</p>
       </header>
+      {storageError ? <p role="alert" className="rounded bg-red-950 p-3 text-sm text-red-100">{storageError}</p> : null}
 
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -154,18 +154,21 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
         ))}
         {matrix.flat().map((date) => {
           const inMonth = date.getMonth() === monthFirst.getMonth()
-          const summary = summarizeDay(store[ymd(date)] || {})
+          const summary = summarizeSalahDay(store[ymd(date)])
+          const future = ymd(date) > todayKey
           const selectedDay = sameDay(date, selected)
           return (
             <button
               key={ymd(date)}
               type="button"
               onClick={() => setSelected(date)}
-              className={`aspect-square rounded flex flex-col items-center justify-center ${heatClass(summary.completed, summary.logged, inMonth)} ${selectedDay ? 'ring-2 ring-yellow-300' : ''}`}
+              className={`aspect-square rounded flex flex-col items-center justify-center ${heatClass(future ? 0 : summary.completed, future ? 0 : summary.logged, inMonth)} ${selectedDay ? 'ring-2 ring-yellow-300' : ''}`}
+              aria-label={`${date.toDateString()}: ${summary.completed} completed of ${summary.logged} logged; ${future ? 'future date, stars not applicable' : `${summary.stars} of 5 stars`}`}
               title={`${date.toDateString()} · ${summary.logged === 0 ? 'No data' : `${summary.completed} completed, ${summary.missed} missed, ${summary.notLogged} not logged`}`}
             >
               <span className="text-[10px]">{date.getDate()}</span>
               <span className="text-[10px]">{summary.logged === 0 ? '—' : `${summary.completed}/${summary.logged}`}</span>
+              <span aria-hidden="true" className={`text-[10px] ${future || summary.stars === 0 ? 'text-gray-400' : summary.stars === 5 ? 'text-gray-950' : 'text-yellow-200'}`}>★ {future ? '—' : `${summary.stars}/5`}</span>
             </button>
           )
         })}
@@ -183,6 +186,7 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
               : `${daySummary.completed} completed · ${daySummary.missed} missed · ${daySummary.notLogged} not logged`}
           </div>
         </div>
+        <p className="text-sm text-teal-300">{selectedKey > todayKey ? 'Future date: stars do not count yet.' : `★ ${daySummary.stars}/5 stars`} <span className="text-xs text-gray-400">Missed and not logged earn zero stars; logged-data rates stay separate.</span></p>
 
         {sameDay(selected, new Date()) ? (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
@@ -266,17 +270,6 @@ function StatusButton({ label, selected, selectedClass, onClick }: { label: stri
 
 function ExploreButton({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
   return <button type="button" onClick={onClick} className="min-h-20 rounded-lg bg-gray-800 p-4 text-left hover:bg-gray-700 focus:outline focus:outline-2 focus:outline-teal-400"><span className="block font-semibold text-teal-300">{title} →</span><span className="mt-1 block text-xs text-gray-400">{description}</span></button>
-}
-
-function summarizeDay(log: SalahDayLog) {
-  let completed = 0
-  let missed = 0
-  for (const prayer of SALAH_PRAYERS) {
-    if (log[prayer] === true) completed += 1
-    if (log[prayer] === false) missed += 1
-  }
-  const logged = completed + missed
-  return { completed, missed, logged, notLogged: SALAH_PRAYERS.length - logged }
 }
 
 function heatClass(completed: number, logged: number, inMonth: boolean) {

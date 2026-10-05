@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { loadLanguage, t, type AppLanguage } from '../lib/i18n'
+import { APP_LAYOUT_EVENT, effectiveLayout, loadAppLayout } from '../lib/appLayout'
+import { rootFeatureLabel } from '../lib/rootFeatures'
 
 type Props = {
   go?: (screen: string) => void
@@ -50,6 +53,14 @@ const items = [
 
 export default function More({ go }: Props) {
   const language: AppLanguage = loadLanguage()
+  const [layout, setLayout] = useState(loadAppLayout)
+  const shortcuts = effectiveLayout(layout).more
+  useEffect(() => {
+    const refresh = () => setLayout(loadAppLayout())
+    window.addEventListener(APP_LAYOUT_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => { window.removeEventListener(APP_LAYOUT_EVENT, refresh); window.removeEventListener('storage', refresh) }
+  }, [])
 
   function open(screen: string) {
     if (go) go(screen)
@@ -64,17 +75,21 @@ export default function More({ go }: Props) {
       </header>
 
       <section className="space-y-3">
-        {items.map((item) => (
+        {shortcuts.map((id) => {
+          const item = items.find((entry) => entry.screen === id)
+          return (
           <button
-            key={item.screen}
+            key={id}
             type="button"
-            onClick={() => open(item.screen)}
+            onClick={() => open(id)}
             className="w-full rounded-lg bg-gray-800 hover:bg-gray-700 p-4 text-left"
           >
-            <div className="font-semibold text-teal-300">{t(item.titleKey, language)}</div>
-            <div className="text-sm text-gray-400">{t(item.descriptionKey, language)}</div>
+            <div className="font-semibold text-teal-300">{item ? t(item.titleKey, language) : rootFeatureLabel(id, language)}</div>
+            {item && <div className="text-sm text-gray-400">{t(item.descriptionKey, language)}</div>}
           </button>
-        ))}
+        )})}
+        {shortcuts.length === 0 && <p className="text-sm text-gray-400">No shortcuts selected. All features remain available in Feature Hub.</p>}
+        {layout.enabled && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => open('FeatureHub')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">Feature Hub</button><button type="button" onClick={() => open('AppLayout')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">Customize layout</button></div>}
       </section>
     </div>
   )

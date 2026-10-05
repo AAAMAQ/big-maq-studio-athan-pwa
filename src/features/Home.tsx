@@ -2,7 +2,9 @@
 import { useEffect, useState } from 'react'
 import type { Screen } from '../types/nav'
 import { formatHijri } from '../lib/hijri'
-import { loadLanguage, t, type AppLanguage } from '../lib/i18n'
+import { loadLanguage, type AppLanguage } from '../lib/i18n'
+import { APP_LAYOUT_EVENT, effectiveLayout, loadAppLayout, navigationFeatures } from '../lib/appLayout'
+import { rootFeatureLabel } from '../lib/rootFeatures'
 import { formatPrimaryPrayerTime, getPrimaryPrayerContext, loadPrimarySavedCity, primaryTimeViewLabel, sourceDateKey } from '../lib/primaryPrayerSource'
 import { getRamadanDay, getRamadanStatus, loadRamadanSettings } from '../lib/ramadan'
 import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
@@ -12,6 +14,14 @@ import { dateKeyAnchor, sourceWeekday } from '../lib/sourceTime'
 
 export default function Home({ go }: { go: (tab: Screen) => void }) {
   const [language] = useState<AppLanguage>(() => loadLanguage())
+  const [layout, setLayout] = useState(loadAppLayout)
+  const shortcuts = effectiveLayout(layout).home
+  useEffect(() => {
+    const refresh = () => setLayout(loadAppLayout())
+    window.addEventListener(APP_LAYOUT_EVENT, refresh)
+    window.addEventListener('storage', refresh)
+    return () => { window.removeEventListener(APP_LAYOUT_EVENT, refresh); window.removeEventListener('storage', refresh) }
+  }, [])
   const [hijri, setHijri] = useState(() => formatHijri(new Date(), language))
   const [savedCity] = useState(loadPrimarySavedCity)
   const [locationLabel, setLocationLabel] = useState('Location not available')
@@ -46,19 +56,29 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
 
   useEffect(() => {
     if (!prayerSchedule) return
+    let active = true
+    let refreshing = false
     const updatePrayerWindow = () => {
       const window = getPrayerWindow(prayerSchedule.times, new Date(), prayerSchedule.nextFajr)
       setPrayerWindow(window)
       if (sourceDateKey(prayerSchedule, new Date()) !== prayerSchedule.dateKey) {
+        if (refreshing) return
+        refreshing = true
         getPrimaryPrayerContext().then((context) => {
+          if (!active) return
           setPrayerSchedule(context)
           setHijri(formatHijri(dateKeyAnchor(context.dateKey), language))
-        }).catch(() => { /* Keep the last known schedule visible. */ })
+        }).catch(() => { /* Keep the last known schedule visible. */ }).finally(() => {
+          refreshing = false
+        })
       }
     }
     updatePrayerWindow()
     const interval = window.setInterval(updatePrayerWindow, 30_000)
-    return () => window.clearInterval(interval)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [prayerSchedule, language])
 
   // live countdown
@@ -82,9 +102,13 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
 
   return (
     <div className="space-y-6">
-      {/* Title */}
+      {layout.enabled && (
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => go('FeatureHub')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">Feature Hub</button>
+          {!navigationFeatures(layout).includes('Settings') && <button type="button" onClick={() => go('Settings')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">{rootFeatureLabel('Settings', language)}</button>}
+        </div>
+      )}
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Athan App</h1>
         <p className="text-sm text-gray-300">{hijri}</p>
         {prayerSchedule && <p className="mt-1 text-xs text-gray-500">{prayerSchedule.savedCity ? 'Saved city date' : 'Prayer source date'}: {prayerSchedule.dateKey}</p>}
         {isFriday && (
@@ -119,7 +143,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
         </div>
       </section>
 
-      {ramadanDay && (
+      {ramadanDay && !layout.enabled && (
         <button
           type="button"
           onClick={() => go('RamadanMode')}
@@ -133,11 +157,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
 
       {/* Simple vertical actions */}
       <div className="space-y-3">
-        <HomeButton label={t('quran', language)} onClick={() => go('Quran')} />
-        <HomeButton label={t('qibla', language)} onClick={() => go('Qibla')} />
-        <HomeButton label="More" onClick={() => go('More')} />
-        <HomeButton label={t('credits', language)} onClick={() => go('Credits')} />
-        
+        {shortcuts.map((id) => <HomeButton key={id} label={rootFeatureLabel(id, language)} onClick={() => go(id)} />)}
       </div>
     </div>
   )
@@ -146,6 +166,7 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
 function HomeButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className="w-full bg-gray-800 rounded-lg p-4 text-center font-semibold hover:bg-gray-700"
     > 

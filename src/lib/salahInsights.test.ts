@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateSalahPeriodInsights, calculateSalahRangeInsights, normalizeSalahLogStore, type SalahLogStore } from './salahInsights'
+import { calculateSalahPeriodInsights, calculateSalahRangeInsights, normalizeSalahLogStore, summarizeSalahDay, type SalahLogStore } from './salahInsights'
 
 describe('normalizeSalahLogStore', () => {
   it('preserves completed, missed, Sunnah, daily notes, and legacy status values', () => {
@@ -96,5 +96,43 @@ describe('selected ranges', () => {
     const result = calculateSalahRangeInsights(store, { kind: 'custom', from: '2026-01-01', to: '2026-02-01' }, new Date(2026, 0, 2))
     expect(result.dayCount).toBe(2)
     expect(result.prayers.Fajr.logged).toBe(2)
+  })
+})
+
+describe('fixed-capacity stars', () => {
+  it('has no all-recorded average before the first obligatory record', () => {
+    expect(calculateSalahPeriodInsights({ '2026-10-01': { Notes: 'Note' }, '2027-01-01': { Fajr: true } }, 'all', new Date(2026, 9, 5)).stars).toEqual({ total: 0, possible: 0, elapsedDays: 0, averagePerDay: null })
+  })
+  it('does not show a five-slot star trend before any recorded time exists', () => {
+    const result = calculateSalahPeriodInsights({}, 'all', new Date(2026, 9, 5))
+    expect(result.trend.reduce((total, point) => total + point.possibleStars, 0)).toBe(result.stars.possible)
+  })
+  it('uses elapsed Sunday-start week days, never future slots', () => {
+    const result = calculateSalahPeriodInsights({ '2026-10-04': { Fajr: true }, '2026-10-05': { Fajr: true }, '2026-10-06': { Fajr: true } }, 'week', new Date(2026, 9, 5))
+    expect(result.stars).toEqual({ total: 2, possible: 10, averagePerDay: 1, elapsedDays: 2 })
+  })
+  it('includes the leap-day slot and calendar days through DST changes', () => {
+    const leap = calculateSalahRangeInsights({ '2024-02-29': { Fajr: true } }, { kind: 'custom', from: '2024-02-28', to: '2024-03-01' }, new Date(2024, 2, 1))
+    expect(leap.stars).toEqual({ total: 1, possible: 15, averagePerDay: 1 / 3, elapsedDays: 3 })
+    const dst = calculateSalahRangeInsights({}, { kind: 'custom', from: '2026-03-07', to: '2026-03-10' }, new Date(2026, 2, 10))
+    expect(dst.stars).toEqual({ total: 0, possible: 20, averagePerDay: 0, elapsedDays: 4 })
+  })
+  it('derives all six daily values without changing unknown or Sunnah statuses', () => {
+    const keys = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']
+    for (let stars = 0; stars <= 5; stars += 1) {
+      const log = Object.fromEntries(keys.slice(0, stars).map((key) => [key, true]))
+      expect(summarizeSalahDay({ ...log, Sunnah: true })).toMatchObject({ stars, possibleStars: 5, notLogged: 5 - stars })
+    }
+    expect(summarizeSalahDay({ Fajr: true, Dhuhr: true, Asr: true, Maghrib: false })).toEqual({ completed: 3, missed: 1, logged: 4, notLogged: 1, stars: 3, possibleStars: 5 })
+  })
+  it('counts blank past days in capacity and average while keeping logged rates', () => {
+    const result = calculateSalahRangeInsights({
+      '2026-10-01': { Fajr: true, Dhuhr: true, Asr: true, Maghrib: false },
+      '2026-10-03': { Fajr: true },
+      '2026-10-04': { Fajr: true }
+    }, { kind: 'custom', from: '2026-10-01', to: '2026-10-04' }, new Date(2026, 9, 3))
+    expect(result.stars).toEqual({ total: 4, possible: 15, averagePerDay: 4 / 3, elapsedDays: 3 })
+    expect(result.prayers.Maghrib).toMatchObject({ completed: 0, logged: 1, rate: 0 })
+    expect(result.trend[0]).toMatchObject({ stars: 4, possibleStars: 15, elapsedDays: 3 })
   })
 })

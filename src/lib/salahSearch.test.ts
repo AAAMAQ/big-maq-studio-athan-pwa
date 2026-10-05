@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { explainSalahSearch, matchesSalahSearch, parseSalahSearch, searchSalahDays } from './salahSearch'
+import { explainSalahSearch, matchesSalahSearch, parseSalahSearch, searchSalahDays, summarizeSalahSearchResults } from './salahSearch'
 import type { SalahLogStore } from './salahInsights'
 
 const store: SalahLogStore = {
@@ -48,6 +48,78 @@ describe('Salah search grammar', () => {
   it('reports malformed expressions rather than silently returning no matches', () => {
     for (const query of ['1&', '1&(!2', '[1,2]', '[1&1]', '6', '!']) {
       expect(() => parseSalahSearch(query)).toThrow()
+    }
+  })
+})
+
+describe('v4 local attributes and ranges', () => {
+  const fixture: SalahLogStore = {
+    '2025-02-21': { Fajr: true, Dhuhr: true, Asr: true },
+    '2026-05-30': { Fajr: true, Dhuhr: false, Asr: false, Maghrib: false, Isha: false },
+    '2026-10-05': { Fajr: false, Notes: 'Monday reflection' },
+    '2026-10-06': { Notes: '   ' },
+    '2026-10-12': { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true, Notes: 'Both alternatives' }
+  }
+  const now = new Date(2026, 9, 12)
+  const search = (query: string) => searchSalahDays(fixture, query, undefined, now)
+
+  it('counts stars/completion and logging coverage independently', () => {
+    expect(search('(star(3-5))')).toEqual(['2026-10-12', '2025-02-21'])
+    expect(search('stars3')).toEqual(search('done3'))
+    expect(search('done3-5')).toEqual(search('(star(3-5))'))
+    expect(search('(logged5)&(26y)')).toEqual(['2026-10-12', '2026-05-30'])
+    expect(search('(logged(3-5))')).toEqual(['2026-10-12', '2026-05-30', '2025-02-21'])
+    expect(search('(!logged5)&(26y)')).toEqual(['2026-10-06', '2026-10-05'])
+    expect(search('star0')).toEqual(['2026-10-06', '2026-10-05'])
+  })
+  it('ignores whitespace notes and keeps special prayer negation', () => {
+    expect(search('(note)')).toEqual(search('notes'))
+    expect(search('(notes)&!fajr')).toEqual(['2026-10-05'])
+    expect(search('(!notes)')).toEqual(['2026-10-06', '2026-05-30', '2025-02-21'])
+  })
+  it('distributes weekday through grouped OR and returns a day once', () => {
+    expect(search('(mon)&((logged5),(notes))')).toEqual(['2026-10-12', '2026-10-05'])
+    expect(search('MONDAY')).toEqual(search('mon'))
+    expect(search('(mon)&((logged5),(notes))')).toEqual(search('(mon&logged5),(mon&notes)'))
+  })
+  it('keeps exact completed sets independent of missed and unknown leftovers', () => {
+    const node = parseSalahSearch('[fajr&dhuhr]')
+    expect(matchesSalahSearch(node, { Fajr: true, Dhuhr: true })).toBe(true)
+    expect(matchesSalahSearch(node, { Fajr: true, Dhuhr: true, Asr: false })).toBe(true)
+    expect(matchesSalahSearch(node, { Fajr: true, Dhuhr: true, Isha: true })).toBe(false)
+  })
+  it('enumerates a bounded spring DST range using calendar dates', () => {
+    const dates = searchSalahDays({}, 'star0', { from: '2026-02-09', to: '2026-03-10' }, new Date(2026, 2, 10))
+    expect(dates).toHaveLength(30)
+    expect(dates[0]).toBe('2026-03-10')
+    expect(dates.at(-1)).toBe('2026-02-09')
+  })
+  it('filters actual dates with independent recurring component ranges in every order', () => {
+    for (const query of ['((2-5)m.(21-30)d.(25-26)y)', '((25-26)y.(21-30)d.(2-5)m)']) {
+      expect(search(query)).toEqual(['2026-05-30', '2025-02-21'])
+    }
+    expect(search('(star(3-5))&((25-26)y)')).toEqual(['2026-10-12', '2025-02-21'])
+    expect(search('((1-15)d.Oct.26y)')).toEqual(['2026-10-12', '2026-10-06', '2026-10-05'])
+    expect(() => parseSalahSearch('(Feb.(21-30)d.(25-26)y)')).not.toThrow()
+    expect(() => parseSalahSearch('(Feb.29d.(24-26)y)')).not.toThrow()
+    expect(() => parseSalahSearch('(Feb.29d.(25-26)y)')).toThrow()
+  })
+  it('uses tracker midnight for an inclusive rolling 30-day scope', () => {
+    const records = { '2026-09-12': { Fajr: true }, '2026-09-13': { Fajr: true }, '2026-10-12': { Fajr: true } }
+    expect(searchSalahDays(records, '(last30days)&fajr', undefined, now)).toEqual(['2026-10-12', '2026-09-13'])
+    expect(searchSalahDays(records, 'last30days', undefined, new Date(2026, 9, 11))).toEqual(['2026-09-13', '2026-09-12'])
+  })
+  it('aggregates all five statuses per matched day and never invents blank dates', () => {
+    const dates = search('(!notes)')
+    const totals = summarizeSalahSearchResults(fixture, dates)
+    expect(totals.completed + totals.missed + totals.notLogged).toBe(dates.length * 5)
+    expect(totals.stars).toBe(totals.completed)
+    expect(searchSalahDays({}, 'star0', undefined, now)).toEqual([])
+    expect(searchSalahDays({}, 'logged0', { from: '2026-10-11', to: '2026-10-12' }, now)).toHaveLength(2)
+  })
+  it('rejects malformed counts, ranges, duplicate fields and pathological nesting', () => {
+    for (const query of ['star6', 'star(5-3)', 'logged(-1-5)', 'star(1-fajr)', '((5-2)m)', '((0-3)m)', '((1-32)d)', '((25-26)y.26y)', '[logged5]', '!~1', '(1-15)d.Jun.26y&', '('.repeat(33) + 'notes' + ')'.repeat(33), '1'.repeat(2049)]) {
+      expect(() => parseSalahSearch(query), query).toThrow()
     }
   })
 })

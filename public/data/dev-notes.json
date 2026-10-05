@@ -1,5 +1,20 @@
 [
   {
+    "id": "2026-10-05-v4-0-0-your-app-your-flow",
+    "date": "2026-10-05",
+    "version": "v4.0.0",
+    "title": "Your App, Your Flow",
+    "summary": [
+      "Added optional Custom Layout with draft add/remove/reorder, preview, save, cancel and reset. Keep Home first and choose up to four other navigation features; customize Home and More independently. The prayer preview stays protected, Settings moves to Home's top right when removed from navigation, and Feature Hub keeps every feature accessible without deleting records.",
+      "Added independent, opt-in Performance Mode and code-preparation priorities. Features open on demand without changing their appearance, animations, prayer calculations or capabilities. Screen-owned work is cleaned up after leaving; matching Quran text requests are shared while pending, with bounded bookkeeping and no new audio download.",
+      "Added universal expanded/collapsed Settings sections using accessible plus/minus controls while preserving mounted form values and intentional export workflows. Removed the redundant inner Athan App heading from Home.",
+      "Added colored daily Salah stars and period totals/averages. Each completed obligatory prayer earns one star out of five; missed and unlogged slots earn zero, including blank elapsed days. Stars stay separate from logged-only completion rates and verified streaks, and Not logged remains distinct from Missed.",
+      "Extended private Salah search with star/stars/done counts and ranges, logging coverage, notes, weekdays, relative last30days, and inclusive order-independent date-component ranges. Added named saved searches with fixed or rolling scopes, bounded recent queries and contextual result summaries. Existing prayer operators and exact completed sets remain compatible.",
+      "Included layout, performance priorities, Settings expansion and saved/recent searches in personal Backup and Restore, with validation and safe failure feedback. New preferences and search definitions remain excluded from Share Your Defaults. Quran cache bodies are not embedded in JSON backups, so restored metadata never claims downloaded text exists on a new device.",
+      "Added recoverable screen-loading/render errors and safe staged update checks that preserve the current offline shell on a connection failure. Split screen code remains disk-precached for offline opening after successful installation. Refreshed the README and in-app Help for the major release; standalone Iqama, source profiles, Quran progress, Qibla and calendar exports remain available."
+    ]
+  },
+  {
     "id": "2026-10-04-v3-3-3-search-qibla",
     "date": "2026-10-04",
     "version": "v3.3.3",

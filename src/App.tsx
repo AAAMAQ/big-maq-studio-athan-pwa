@@ -1,45 +1,47 @@
 // src/App.tsx
-import { useEffect, useRef, useState } from 'react'
-import PrayerTimes from './features/PrayerTimes'
-import Qibla from './features/Qibla'
-import Quran from './features/Quran'
-import QuranSettings from './features/QuranSettings'
-import Settings from './features/Settings'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Home from './features/Home'
-import Credits from './features/Credits'
-import DevNotes from './features/DevNotes'
-import Privacy from './features/Privacy'
-import Vision from './features/Vision'
-import NeedHelp from './features/NeedHelp'
-import SalahTracker from './features/SalahTracker'
-import SalahInsights from './features/SalahInsights'
-import SalahSearch from './features/SalahSearch'
-import SalahGraphs from './features/SalahGraphs'
-import AthanEngine from './features/AthanEngine'
-import Iqama from './features/Iqama'
-import More from './features/More'
-import MasjidMode from './features/MasjidMode'
-import BackupRestore from './features/BackupRestore'
-import RamadanMode from './features/RamadanMode'
-import SavedCities from './features/SavedCities'
-import Onboarding from './features/Onboarding'
 import SharedDefaultsPrompt from './components/SharedDefaultsPrompt'
+import ScreenBoundary, { ScreenLoading } from './components/ScreenBoundary'
 import { loadLanguage, t, type AppLanguage } from './lib/i18n'
 import { parseSharedDefaultsUrl, type SharedDefaults } from './lib/sharedDefaults'
-import { PRIMARY_TABS, type Screen, type Tab } from './types/nav'
-
-const primaryTabs = PRIMARY_TABS
+import type { Screen } from './types/nav'
+import { APP_LAYOUT_EVENT, loadAppLayout, navigationFeatures } from './lib/appLayout'
+import { loadPerformancePreferences } from './lib/performancePreferences'
+import { rootFeatureLabel, rootForScreen, type RootFeatureId } from './lib/rootFeatures'
+import { getLazyScreen, resetFeatureScreen, scheduleFeaturePreparation } from './lib/screenLoader'
+import { refreshAthanApp } from './lib/pwa'
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('Home')
   const [screen, setScreen] = useState<Screen>('Home')
   const [history, setHistory] = useState<Screen[]>([])
   const [trackerSelectedDate, setTrackerSelectedDate] = useState<string>()
   const [language, setLanguage] = useState<AppLanguage>(() => loadLanguage())
+  const [layout, setLayout] = useState(loadAppLayout)
+  const [performance, setPerformance] = useState(loadPerformancePreferences)
+  const [retry, setRetry] = useState(0)
+  const [recoveryMessage, setRecoveryMessage] = useState('')
   const [sharedDefaults, setSharedDefaults] = useState<SharedDefaults | null>(() => (
     typeof window === 'undefined' ? null : parseSharedDefaultsUrl(window.location.href)
   ))
   const mainRef = useRef<HTMLElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  const primaryTabs = navigationFeatures(layout)
+
+  useEffect(() => {
+    const reload = () => {
+      setLayout(loadAppLayout())
+      setPerformance(loadPerformancePreferences())
+    }
+    window.addEventListener(APP_LAYOUT_EVENT, reload)
+    window.addEventListener('storage', reload)
+    return () => {
+      window.removeEventListener(APP_LAYOUT_EVENT, reload)
+      window.removeEventListener('storage', reload)
+    }
+  }, [])
+
+  useEffect(() => scheduleFeaturePreparation(layout, performance), [layout, performance])
 
   useEffect(() => {
     const onLanguageChange = () => setLanguage(loadLanguage())
@@ -53,13 +55,13 @@ export default function App() {
   }, [language])
 
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 })
+    mainRef.current?.scrollTo?.({ top: 0 })
+    titleRef.current?.focus({ preventScroll: true })
   }, [screen])
 
-  const isPrimary = (s: Screen): s is Tab => (primaryTabs as readonly string[]).includes(s)
+  const isPrimary = (s: Screen) => (primaryTabs as readonly string[]).includes(s)
 
-  const goTab = (t: Tab) => {
-    setTab(t)
+  const goTab = (t: RootFeatureId) => {
     setScreen(t)
     setHistory([])
   }
@@ -70,12 +72,10 @@ export default function App() {
     if (history.at(-1) === target) {
       setHistory((current) => current.slice(0, -1))
       setScreen(target)
-      if (isPrimary(target)) setTab(target)
       return
     }
     setHistory((current) => [...current, screen])
     setScreen(target)
-    if (isPrimary(target)) setTab(target)
   }
 
   const goBack = () => {
@@ -83,7 +83,6 @@ export default function App() {
     if (previous) {
       setHistory((current) => current.slice(0, -1))
       setScreen(previous)
-      if (isPrimary(previous)) setTab(previous)
       return
     }
     goTab('Home')
@@ -118,16 +117,23 @@ export default function App() {
     BackupRestore: t('backupRestore', language),
     RamadanMode: t('ramadanMode', language),
     SavedCities: t('savedCities', language),
-    Onboarding: t('onboarding', language)
-  }
-
-  const tabLabels: Record<Tab, string> = {
-    Home: t('home', language),
-    Prayer: t('prayer', language),
-    Settings: t('settings', language)
+    Onboarding: t('onboarding', language),
+    FeatureHub: 'Feature Hub',
+    AppLayout: 'Performance & App Layout'
   }
 
   const title = screenLabels[screen]
+  const FeatureScreen = screen === 'Home' ? Home : getLazyScreen(screen)
+  const selectedRoot = rootForScreen(screen)
+  const retryScreen = () => {
+    resetFeatureScreen(screen)
+    setRetry(current => current + 1)
+  }
+  const reloadApp = () => {
+    void refreshAthanApp(status => setRecoveryMessage(status === 'fallback'
+      ? 'Could not check for an update. Your current offline app and saved records are preserved; retry when connected.'
+      : status === 'reloading' ? 'Reloading the available app…' : status === 'ready' ? 'Update check complete.' : 'Checking for an update…'))
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -141,49 +147,29 @@ export default function App() {
             ← {t('back', language)}
           </button>
         ) : <span className="w-[64px]" />}
-        <h1 className="text-xl font-bold text-center flex-1">{title}</h1>
+        <h1 ref={titleRef} tabIndex={-1} className="text-xl font-bold text-center flex-1 outline-none">{title}</h1>
         <span className="w-[64px]" />
       </header>
 
       {/* Main content */}
       <main ref={mainRef} className="flex-1 overflow-auto p-4">
-        {screen === 'Home' && <Home go={go} />}
-        {screen === 'Prayer' && <PrayerTimes />}
-        {screen === 'Settings' && <Settings go={go} />}
-        {screen === 'Qibla' && <Qibla go={go} />}
-        {screen === 'Quran' && <Quran go={go} />}
-        {screen === 'QuranSettings' && <QuranSettings />}
-        {screen === 'Credits' && <Credits go={go} />}
-        {screen === 'DevNotes' && <DevNotes />}
-        {screen === 'Privacy' && <Privacy />}
-        {screen === 'Vision' && <Vision />}
-        {screen === 'NeedHelp' && <NeedHelp />}
-        {/* Optional future screens */} 
-        {screen === 'SalahTracker' && <SalahTracker go={go} initialDate={trackerSelectedDate} />}
-        {screen === 'SalahInsights' && <SalahInsights />}
-        {screen === 'SalahSearch' && <SalahSearch onOpenDay={openTrackerDay} />}
-        {screen === 'SalahGraphs' && <SalahGraphs onOpenDay={openTrackerDay} />}
-        {screen === 'AthanEngine' && <AthanEngine go={go} />}
-        {screen === 'Iqama' && <Iqama go={go} />}
-        {screen === 'More' && <More go={go} />}
-        {screen === 'MasjidMode' && <MasjidMode go={go} />}
-        {screen === 'BackupRestore' && <BackupRestore go={go} />}
-        {screen === 'RamadanMode' && <RamadanMode go={go} />}
-        {screen === 'SavedCities' && <SavedCities go={go} />}
-        {screen === 'Onboarding' && <Onboarding go={go} />}
+        <ScreenBoundary resetKey={screen + ':' + retry} onRetry={retryScreen} onHome={() => goTab('Home')} onSettings={() => go('Settings')} onFeatureHub={() => go('FeatureHub')} onReloadApp={reloadApp} recoveryMessage={recoveryMessage}>
+          <Suspense fallback={<ScreenLoading />}>
+            <FeatureScreen go={go} initialDate={trackerSelectedDate} onOpenDay={openTrackerDay} />
+          </Suspense>
+        </ScreenBoundary>
       </main>
 
-      {/* Bottom navigation — ONLY three tabs */}
-      <nav className="flex justify-around bg-gray-800 p-2">
-        {primaryTabs.map(t => (
+      <nav aria-label="Main navigation" className="flex justify-around bg-gray-800 p-2">
+        {primaryTabs.map(destination => (
           <button
-            key={t}
-            onClick={() => goTab(t)}
-            aria-current={tab === t ? 'page' : undefined}
-            className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-1 text-xs transition-colors ${tab === t ? 'text-teal-300' : 'text-gray-400 hover:text-gray-200'}`}
+            key={destination}
+            onClick={() => goTab(destination)}
+            aria-current={selectedRoot === destination ? 'page' : undefined}
+            className={`flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-1 text-xs transition-colors ${selectedRoot === destination ? 'text-teal-300' : 'text-gray-400 hover:text-gray-200'}`}
           >
-            <NavIcon tab={t} />
-            {tabLabels[t]}
+            <NavIcon tab={destination} />
+            <span className="text-center break-words">{destination === 'Prayer' ? t('prayer', language) : rootFeatureLabel(destination, language)}</span>
           </button>
         ))}
       </nav>
@@ -194,7 +180,7 @@ export default function App() {
   )
 }
 
-function NavIcon({ tab }: { tab: Tab }) {
+function NavIcon({ tab }: { tab: RootFeatureId }) {
   if (tab === 'Home') {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -212,6 +198,11 @@ function NavIcon({ tab }: { tab: Tab }) {
       </svg>
     )
   }
+  if (tab !== 'Settings') return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  )
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <circle cx="12" cy="12" r="3" />

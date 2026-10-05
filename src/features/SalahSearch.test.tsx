@@ -1,0 +1,64 @@
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import SalahSearch from './SalahSearch'
+import { loadSavedSalahSearches } from '../lib/salahSavedSearches'
+import { SALAH_DATA_CHANGE_EVENT, SALAH_LOG_STORAGE_KEY } from '../lib/salahStore'
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date(2026, 9, 5, 12))
+  localStorage.setItem(SALAH_LOG_STORAGE_KEY, JSON.stringify({ '2026-10-05': { Fajr: false, Notes: 'Synthetic note' }, '2026-10-04': { Fajr: true } }))
+})
+afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); vi.restoreAllMocks() })
+
+describe('Salah query definitions and live summaries', () => {
+  it('saves, opens, renames and removes a query without copying records', () => {
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    const query = screen.getByRole('searchbox')
+    fireEvent.change(query, { target: { value: '(notes)&!fajr' } })
+    expect(screen.getByText(/0 completed · 1 missed · 4 not logged/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Name this search'), { target: { value: 'My reflection' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save search$/ }))
+    expect(loadSavedSalahSearches().searches[0]).toMatchObject({ name: 'My reflection', query: '(notes)&!fajr', scope: { kind: 'recorded' } })
+    fireEvent.change(query, { target: { value: 'fajr' } })
+    fireEvent.click(screen.getByRole('button', { name: 'My reflection → Open' }))
+    expect((query as HTMLInputElement).value).toBe('(notes)&!fajr')
+    fireEvent.click(screen.getByRole('button', { name: 'Rename My reflection' }))
+    fireEvent.change(screen.getByLabelText('New search name'), { target: { value: 'Monday reflection' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
+    expect(loadSavedSalahSearches().searches[0].name).toBe('Monday reflection')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove saved search Monday reflection' }))
+    expect(loadSavedSalahSearches().searches).toEqual([])
+  })
+  it('refreshes after restore and opens the correct matching tracker day', () => {
+    const openDay = vi.fn()
+    render(<SalahSearch onOpenDay={openDay} />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'fajr' } })
+    expect(screen.getByRole('heading', { name: '1 matching day' })).toBeTruthy()
+    act(() => {
+      localStorage.setItem(SALAH_LOG_STORAGE_KEY, JSON.stringify({ '2026-10-05': { Fajr: true } }))
+      window.dispatchEvent(new Event(SALAH_DATA_CHANGE_EVENT))
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Mon, Oct 5, 2026 → Open day/ }))
+    expect(openDay).toHaveBeenCalledWith('2026-10-05')
+  })
+  it('keeps saved bounded blank-day scopes explicit', () => {
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'logged0' } })
+    fireEvent.click(screen.getByLabelText('Restrict search to a fixed date range'))
+    fireEvent.click(screen.getByLabelText('Include days with no records in this bounded range'))
+    fireEvent.change(screen.getByLabelText('Name this search'), { target: { value: 'October blanks' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save search$/ }))
+    expect(loadSavedSalahSearches().searches[0].scope).toEqual({ kind: 'absolute', from: '2026-10-01', to: '2026-10-05', includeBlankDates: true })
+  })
+  it('never claims a new query was saved if its requested absolute scope is invalid', () => {
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'star0' } })
+    fireEvent.click(screen.getByLabelText('Restrict search to a fixed date range'))
+    fireEvent.change(screen.getByLabelText('Through'), { target: { value: '2040-10-05' } })
+    fireEvent.change(screen.getByLabelText('Name this search'), { target: { value: 'Too long fixed range' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save search$/ }))
+    expect(screen.queryByText('Search saved locally and included in personal backups.')).toBeNull()
+    expect(loadSavedSalahSearches().searches).toEqual([])
+  })
+})

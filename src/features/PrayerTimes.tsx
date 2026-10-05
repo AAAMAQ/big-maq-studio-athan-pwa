@@ -68,19 +68,29 @@ export default function PrayerTimes() {
 
   useEffect(() => {
     if (!context) return
+    let active = true
+    let refreshing = false
     const update = () => {
       if (sourceDateKey(context, new Date()) !== context.dateKey) {
+        if (refreshing) return
+        refreshing = true
         getPrimaryPrayerContext().then((nextContext) => {
+          if (!active) return
           setContext(nextContext)
           setTimes(nextContext.times)
           setNext(nextPrayer(nextContext.times, new Date(), nextContext.nextFajr))
-        }).catch(() => { /* Keep the last known schedule visible. */ })
+        }).catch(() => { /* Keep the last known schedule visible. */ }).finally(() => {
+          refreshing = false
+        })
       } else {
         setNext(nextPrayer(context.times, new Date(), context.nextFajr))
       }
     }
     const interval = window.setInterval(update, 30_000)
-    return () => window.clearInterval(interval)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [context])
 
   useEffect(() => {

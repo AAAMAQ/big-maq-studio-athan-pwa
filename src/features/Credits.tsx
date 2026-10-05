@@ -66,7 +66,8 @@ export default function Credits({ go, backTarget }: Props) {
     await refreshAthanApp((status) => {
       if (status === 'checking') setUpdateStatus('Checking for update…')
       if (status === 'reloading') setUpdateStatus('Reloading latest version…')
-      if (status === 'fallback') setUpdateStatus('Could not fully clear cache. Reloading anyway.')
+      if (status === 'fallback') setUpdateStatus('Could not check for an update. Your current app and offline files are preserved; retry when connected.')
+      if (status === 'ready') setUpdateStatus('Update check complete.')
     })
   }
 
@@ -106,7 +107,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v3.3.3 — Search additions and Qibla fixes: flexible date searches for Salah progress, automatic Qibla startup, and permission retry controls."
+            value="v4.0.0 — Your App, Your Flow: optional custom layouts and internal Performance Mode, cleaner Settings, fixed-capacity Salah stars, richer private search and saved searches."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>

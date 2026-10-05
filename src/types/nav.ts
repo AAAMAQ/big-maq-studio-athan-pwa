@@ -29,3 +29,5 @@ export type Screen =
   | 'RamadanMode'
   | 'SavedCities'
   | 'Onboarding'
+  | 'FeatureHub'
+  | 'AppLayout'

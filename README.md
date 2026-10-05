@@ -1,523 +1,314 @@
 # Athan PWA
 
-A lightweight, privacy-friendly Islamic prayer web app built with React, TypeScript, and Vite.
+A lightweight, privacy-friendly Islamic utility built with React, TypeScript, Vite, and Tailwind CSS. Check prayer times, find Qibla, read the Quran, privately track Salah, and export calendar reminders without an account or a traditional app-store download.
 
-Athan PWA helps users check prayer times, find the Qibla direction, read the Quran, track Salah, and export prayer reminders to their calendar without needing a traditional app-store download.
+## Current release
 
-The app is built as a Progressive Web App, which means it can be opened in the browser and installed to the home screen on supported devices.
+**v4.0.0 — Your App, Your Flow**
 
----
+Personalize navigation and shortcuts, choose invisible loading optimizations, and explore Salah progress with fixed-capacity stars and richer local searches. Existing features and private records remain intact.
 
-## Progressive Web App
+### Added and changed in v4.0.0
 
-Athan PWA can be installed on supported devices from the browser.
+- Optional Custom Layout: reorder/add/remove navigation, Home, and More shortcuts; preview drafts, save, cancel, and reset.
+- Permanent Home plus up to four additional navigation destinations; protected Settings fallback and Feature Hub access.
+- Optional Performance Mode and priority preparation, without reducing features, changing calculations, animations, or visual design.
+- Universal plus/minus Settings sections; collapse preserves controls and intentional work rather than putting a feature to sleep.
+- Removed the redundant inner “Athan App” Home heading; prayer preview, date, and primary-source context remain.
+- Daily `★ x/5` stars and period totals/averages, alongside unchanged logged-only completion rates.
+- Notes, logging counts, stars, weekdays, relative dates, and inclusive date-component ranges in Salah search.
+- Named saved searches, recent queries, local examples, and compact matching-day summaries.
+- Personal backups include new layout, performance, disclosure, and query preferences.
+- Recoverable screen-loading/render errors and safer update checks that preserve the current offline shell on failure.
 
-### Install on iPhone or iPad
+Earlier features remain available. Full release history is inside **Credits → Developer Notes**, rather than a growing list of historical notes here. Every major release requires a complete README audit; smaller changes still need corrections when documented behavior changes.
 
-1. Open the app in Safari.
-2. Tap the Share button.
-3. Tap **Add to Home Screen**.
-4. Confirm the install.
+## Live app and repository
 
-### Install on Android
+- [Main release](https://athan-pwa.vercel.app/)
+- [Test launch](https://test-athan-pwa.vercel.app/)
+- [Beta address](https://test-athan-app.vercel.app/)
+- [GitHub repository](https://github.com/AAAMAQ/big-maq-studio-athan-pwa)
 
-1. Open the app in Chrome.
-2. Tap the menu button.
-3. Tap **Add to Home screen** or **Install app**.
-4. Confirm the install.
+These existing Vercel addresses are retained. Their deployment status can differ; listing an address does not establish that it serves the same or latest build. There is no second GitHub Pages deployment or cross-domain personal-data synchronization.
 
-### Install on Desktop
+## Project vision
 
-Supported browsers may show an install icon in the address bar.
+Athan PWA was created to be a simple, fast, and respectful prayer-time app. Many prayer apps contain ads, unnecessary tracking, complicated screens, or distractions from helping Muslims pray on time.
 
----
-## Live App Links
+Our goals remain:
 
-The app currently has multiple Vercel aliases. All of these point to the latest version of the app.
-
-### Main Release
-
-https://athan-pwa.vercel.app/
-
-### Test Launch
-
-https://test-athan-pwa.vercel.app/
-
-### Beta Version
-
-https://test-athan-app.vercel.app/
-
----
-
-## Repository
-
-GitHub repository:
-
-https://github.com/AAAMAQ/TEST-athan-pwa
-
----
-
-## Current Version
-
-**v3.3.3 — Search additions and Qibla fixes**
-
-This version adds flexible date filters to Search Salah Progress and automatically starts Qibla location and
-compass access when opened, reusing granted iPhone permissions where available and offering retry controls when
-needed. Quran reading progress, the dedicated Developer Notes screen, and existing tracker and calendar features
-remain available.
-
----
-
-## Unified UI and Navigation
-
-Athan PWA uses one responsive navy-and-teal interface across the installed PWA and browser experience. Shared cards,
-buttons, headings, status messages, and back navigation keep Home, Prayer Times, Settings, Qibla, Quran, and the
-advanced tools visually connected.
-
-The primary navigation stays focused on three destinations:
-
-- **Home** shows the Hijri date, current prayer, next prayer countdown, active location or City Mode source, and quick access to Quran, Qibla, More, and Credits.
-- **Prayer** shows daily and monthly prayer times from the same primary prayer source selected in Settings.
-- **Settings** controls calculation defaults, language, reminders, display preferences, and the primary prayer source used throughout the app.
-
-Secondary features live under **More**, including Deep Search Athan, Iqama Times, Masjid Mode, City Mode, Salah
-Tracker, Ramadan Mode, backup and restore, and the App Guide. Secondary screens share the same header and Back
-behavior, while the bottom navigation remains available for returning to the three primary areas.
-
-Qibla follows this unified approach with Simple and Advanced views. Both use the same location-derived Ka‘bah bearing
-and verified compass pipeline: iPhone uses its dedicated browser compass heading, supported Android browsers use
-absolute device orientation, and relative-only motion readings are rejected rather than displayed as North.
-
----
-
-## Project Vision
-
-Athan PWA was created to be a simple, fast, and respectful prayer-time app.
-
-Many prayer apps are filled with ads, unnecessary tracking, complicated screens, or features that distract from the actual purpose: helping Muslims pray on time.
-
-Athan PWA is designed to be different:
-
-- No ads
-- No accounts
-- No unnecessary tracking
-- Lightweight interface
-- Privacy-focused
-- Works directly from the web
-- Can be added to the home screen
-- Designed for daily use
-- Built to stay simple and useful
-
-The goal is not to create a bloated app. The goal is to provide a clean Islamic utility that helps users stay consistent with Salah.
-
----
-
-## Features
-
-### Prayer Times
-
-Athan PWA shows daily prayer times based on the user's location.
-
-Supported prayer times include:
-
-- Fajr
-- Sunrise
-- Dhuhr
-- Asr
-- Maghrib
-- Isha
-
-The home page also shows the next prayer and a live countdown.
-
----
-
-### Hijri Date
-
-The app displays the current Hijri date on the home page.
-
-The Hijri date refreshes automatically at midnight.
-
----
-
-### Current Location Display
-
-The home page can display the user's readable location instead of only showing coordinates.
-
-Location is used only for prayer-time and Qibla-related features.
-
----
-
-### Qibla Direction
-
-The Qibla screen helps users find the direction of the Kaaba.
-
-Simple Mode provides turn guidance, alignment feedback, distance, and an optional vibration when aligned. Advanced
-Mode exposes the numeric Qibla bearing and verified device heading. The app accepts iPhone compass headings and
-absolute Android orientation readings; arbitrary relative Android motion angles are not treated as North.
-
-Qibla accuracy may vary depending on:
-
-- GPS signal
-- Compass calibration
-- Magnetic interference
-- Device hardware
-- Browser permissions
-- Whether the device supports compass sensors
-
-Users should compare with a trusted local source if unsure.
-
----
-
-### Quran Reader
-
-Athan PWA includes a Quran reader with Arabic text and translation support.
-
-Features include:
-
-- Uthmani script Quran
-- English translation display
-- Arabic-only mode
-- Font size controls
-- Surah selection
-- Translation selection
-- Bookmarking ayahs
-- Viewing bookmarked verses
-- Clearing bookmarks
-
-Quran settings and bookmarks are stored locally on the device/browser.
-
----
-
-### Salah Tracker
-
-The private Salah Tracker records each obligatory prayer as Completed, Missed, or Not logged. Unknown days are not
-treated as misses, and optional Sunnahs stay separate from obligatory statistics.
-
-Features include:
-
-- Monthly calendar view
-- Three-state daily logging for Fajr, Dhuhr, Asr, Maghrib, and Isha
-- Mark all completed and clear all obligatory actions
-- Private notes stored separately for every calendar day
-- Week, month, last-30-day, and all-time insight periods
-- Separate Insights, Search Salah Progress, and Graph Insights views, keeping daily logging on the main Tracker screen
-- Graph Insights includes per-prayer completion bars plus an accessible weekly/monthly line trend with logged-data gaps
-- Month selection and custom date ranges for insights
-- Search by prayer name or 1–5 alias, with `!` for Missed, `~` for Not logged, `/` for either, `&` for AND, comma for OR, parentheses for grouping, and `[1&2]` for an exact set of completed prayers
-- Date searches accept dot-separated parts in any order: `2026y.6m.23d`, `23d.Jun.26y`, and `June.23.2026y` identify the same day. `Oct.30` matches October 30 across years, `5m` matches any May, and `5m.26y` matches May 2026. Two-digit years mean 2000–2099. When two parts are identified, the third label can be inferred: `10m.23d.26` and `10.23d.2026y` both mean October 23, 2026. Group dates before combining prayer filters, such as `(23d.06m.2026y)&fajr`
-- Per-prayer completed/logged rates and verified current/longest streaks
-- Contextual consistency, improvement, complete-day, weekday, and trend summaries
-
-Tracker records and daily notes are stored locally on the user's device. The optional evening review reminder is
-configured in Settings and can be included in Settings calendar exports, but its calendar event contains no prayer
-history. Backup and Restore includes tracker records, notes, and the reminder preference, while Share Your Defaults
-excludes all three.
-
----
-
-### Monthly Prayer Times
-
-The app includes a monthly prayer-time view.
-
-Users can view prayer times across a selected month and change months/years.
-When a saved city is the primary source, City time is the default display. Choose City time, Device time, or UTC in
-Settings under Primary prayer time source; the prayer screens show the active timezone label. Calendar dates, Friday
-labels, and next Fajr follow the selected city's local date.
-
----
-
-### Settings
-
-Users can customize prayer calculation settings.
-
-Settings include:
-
-- Calculation method
-- Madhab
-- High-latitude rule
-- Reminder offset
-
-These settings are stored locally in the browser.
-
----
-
-### Calendar Reminder Export
-
-Athan PWA supports exporting prayer reminders as `.ics` calendar files.
-
-Users can generate calendar reminders for:
-
-- 1 day
-- 7 days
-- 30 days
-- 1 year
-
-These files can be imported into calendar apps such as:
-
-- Apple Calendar
-- Google Calendar
-- Outlook Calendar
-- Samsung Calendar
-- Other calendar apps that support `.ics` files
-
-Calendar alerts are handled by the user's calendar app, not by the PWA itself.
-
-Settings, City Mode, standalone Iqama Times, Deep Search Athan, and Masjid Mode use one shared calendar serializer
-and download path. Settings exports can explicitly include or exclude fixed-time Isha, Friday Jumu’ah, and the
-privacy-safe Salah Tracker review reminder. The shared handler supports local and UTC event times, stable event
-identifiers, escaped/folded calendar text, and one or more alerts per event while preserving each screen's
-established choices.
-
-Deep Search Athan and Settings each offer an optional second alert for regular prayer-time events, allowing two
-calendar alerts within one event. Settings uses the selected primary prayer source—either the chosen City Mode
-profile, including its calculation corrections or imported timetable, or current device location when no city is
-selected. Its rich prayer events include source and calculation context and use UTC event instants. Fixed Isha,
-Jumu’ah, and Salah Tracker review events keep their existing alert behavior. Calendar apps control delivery of all
-alerts after import.
-
-Masjid Mode can export the selected masjid profile's Iqama rules and configured Jumu’ah slots for a date range. It
-uses the linked City Mode profile—including imported timetables—when available. If no City Mode profile is linked,
-the screen explicitly falls back to current device location with the prayer calculation saved in Settings. The
-standalone Iqama Times screen remains independently available.
-
----
-
-## Advanced Athan
-
-Advanced Athan is a separate prayer-time system inside the app.
-
-It allows users to search for a location and generate custom prayer-time reminders for that location.
-
-### Advanced Athan Features
-
-Advanced Athan supports:
-
-- Searching by city
-- Searching by country
-- Searching by coordinates
-- Custom date ranges
-- Calculation method selection
-- Madhab selection
-- Reminder offset selection
-- Prayer-time preview before download
-- Custom `.ics` calendar export
-
-Example searches:
-
-```txt
-London
-New York
-Dubai
-Makkah Saudi Arabia
-Chennai
-Anchorage
-21.4225, 39.8262
-```
-## Important Note About Calculation Methods
-
-Prayer times can differ between countries, mosques, communities, and Islamic organizations.
-
-Different calculation methods may use different values for:
-
-- Fajr angle
-- Isha angle
-- Asr calculation
-- High-latitude handling
-- Regional prayer standards
-
-For this reason, users should try different calculation methods and compare them with a trusted local masjid or Islamic authority.
-
-If one method is a few minutes different from another app, that can be normal. If the difference is large, users should check:
-
-- Calculation method
-- Madhab setting
-- High-latitude location behavior
-- Local mosque timetable
-
----
-
-## Privacy
-
-Athan PWA is designed to be privacy-friendly.
-
-Our motto is:
+- No ads, user accounts, or advertising trackers.
+- A lightweight, familiar interface and local private records.
+- Useful daily prayer tools, without unnecessary feature bloat.
+- Browser access and home-screen installation on supported devices.
+- Accessibility across devices, including older and less powerful phones.
 
 > “we know neither your birthday nor your shoe size and we'd like to keep it that way”
 
-### What the app does not do
+## Navigation and feature guide
 
-The app does not:
+The default bottom navigation remains **Home / Prayer / Settings**. Home normally links to Quran, Qibla, More, and Credits. More normally contains Deep Search Athan, City Mode, Iqama Times, Masjid Mode, Salah Tracker, Ramadan Mode, Backup & Restore, and App Guide.
 
-- Create user accounts
-- Show ads
-- Sell user data
-- Use advertising trackers
-- Store personal data on a server
-- Require unnecessary permissions
+| Root feature | What it does |
+| --- | --- |
+| Home | Hijri/source date, primary location and timezone, current prayer, next prayer, countdown, and shortcuts |
+| Prayer Times | Daily six-time schedule and its monthly timetable |
+| Settings | Language, time format, primary source, calculation settings, calendar reminders, local data, PWA status, and optional modes |
+| Quran | Arabic/translation reader, Quran hub, verse lookup, progress, saved Surahs, bookmarks, and reader settings |
+| Qibla | Simple/Advanced compass guidance, Ka‘bah bearing, heading, distance, and optional haptics |
+| More | The standard or customized collection of feature shortcuts |
+| Credits | Credits, support/share actions, Privacy, Vision, Need Help, and Developer Notes |
+| Deep Search Athan | Search locations, choose dates/calculation settings, preview schedules, and export detailed calendar events |
+| City Mode | Saved city profiles, calculation choices/corrections, imported yearly timetables, previews, and timetable/calendar exports |
+| Iqama Times | Independent fixed/offset Iqama rules, selected prayers, saved-masjid rules, previews, and calendar export |
+| Masjid Mode | Named masjid profiles, linked city sources, Iqama rules, Jumu‘ah slots, sharing, and profile-based export |
+| Salah Tracker | Private day logging and notes, plus separate Insights, Search, and Graph destinations |
+| Backup & Restore | Personal local-data export/import and explicit app-data reset |
+| Ramadan Mode | Manual Ramadan/Eid dates, Fajr/Maghrib countdowns, fasting statuses, and notes |
+| App Guide | Existing introduction and practical navigation guidance |
+| Feature Hub | Full root catalog and access to features missing from your shortcuts |
 
-### What may be stored locally
+Monthly view belongs to Prayer Times; Quran Settings belongs to Quran; Salah Insights/Search/Graphs belong to Salah Tracker. They are not separate customizable roots. Moving a root shortcut does not remove any of its child controls.
 
-Some data may be stored locally in the browser, such as:
+### Custom Layout
 
-- Prayer settings
-- Quran bookmarks
-- Salah tracker entries
-- Last known location
-- Cached location search results
-- App preferences
+Open **Settings → Performance & App Layout → Edit layout & feature priorities**. Custom Layout is **off by default**, independently of Performance Mode.
 
-This local data stays on the user’s device/browser.
+- Home remains the first navigation destination. Choose zero to four distinct extras, for five buttons maximum.
+- Prayer and Settings can be replaced or reordered. When Settings is absent, a protected button appears at Home’s top right.
+- Add, remove, and reorder optional Home and More shortcuts using accessible move buttons; dragging is not required.
+- The same feature may appear on different surfaces, sharing the same screen and data. A single list does not repeat a destination.
+- Home’s prayer preview, date/source information, and timezone context cannot be removed.
+- Protected Feature Hub access remains on custom Home and More, including when optional lists are empty. Settings also exposes the full catalog.
+- Preview does not apply a draft. Save applies the layout; Cancel discards unsaved layout edits. Reset prepares the standard layout as a draft until saved.
+- Turning Custom Layout off restores the normal presentation without discarding saved custom lists.
 
----
+Feature Hub can open a hidden root directly or add it to Home/More. Adding there explicitly enables Custom Layout. No feature or records are deleted by hiding a shortcut.
 
-## External Services and Credits
+### Performance Mode and dormant features
 
-Some features depend on external data sources or libraries.
+Performance Mode is **off by default** and independent of Custom Layout. It changes preparation/loading policy, not the interface or feature set. The optimized policy prepares selected priority roots rather than proactively preparing every screen. On-demand screen loads remain available.
 
-### OpenStreetMap Contributors
+Priority means code readiness after Home has an opportunity to render—not mounting a screen, continuous background operation, requesting permissions, or downloading Quran content. Choose priorities and save them separately from layout edits.
 
-Used for location search and readable place names.
+Custom-hidden features can also defer preparation without Performance Mode. Required data from a hidden City/Masjid editor remains usable as a prayer-source dependency. Leaving a screen cleans up screen-owned temporary activity; saved data and downloaded text remain.
 
-Location data © OpenStreetMap contributors.
+“Deep sleep” is a practical label for deferred first loading and stopped unnecessary activity. JavaScript modules already imported may remain in memory. Browser disk caching is not the same as executing code in memory. No zero-crash guarantee or fixed performance percentage is claimed; real older-device testing remains important.
 
-### TimeAPI
+### Universal Settings disclosure
 
-Used to help identify the official timezone for searched coordinates when needed.
+Every user gets independent **− / +** controls for Preferences, Primary prayer time source, Prayer calculation, Calendar reminders, Local data, PWA status, and Performance & App Layout. Sections initially expand; their preferences persist locally and in backups.
 
-### AlAdhan
+Collapse is ordinary visual organization, **not dormancy**. It preserves editing state and already-started exports/update checks.
 
-Used by Advanced Athan for prayer-time timetable data when generating prayer-time previews and calendar exports for searched locations.
+## Prayer times and primary sources
 
-### Adhan Calculation Library
+The daily schedule includes Fajr, Sunrise, Dhuhr, Asr, Maghrib, and Isha. Home and Prayer Times follow the **same primary source** selected in Settings: a saved City Mode profile, or current device location when none is selected.
 
-Used in the app for local prayer-time calculations.
+Ordinary prayer times use the Adhan calculation library locally once coordinates/settings are available. Settings supports Auto country defaults and Manual overrides, calculation method, Shafi/Hanafi Asr timing, and high-latitude rule. Auto defaults are a starting point, not a replacement for a trusted local timetable.
 
----
+When a saved city is primary, City time is the default display. **City time / Device time / UTC** is chosen in Settings. Date/Friday labels and next Fajr follow the source’s local date; display labels make the timezone explicit. Selecting a city in another country must not silently present device clock time as that city’s clock.
 
-## Progressive Web App
+Prayer methods can legitimately differ in Fajr/Isha angles, Asr rules, rounding, or high-latitude treatment. Compare with your local masjid or Islamic authority. The app is a utility, not a religious authority.
 
-Athan PWA can be installed on supported devices from the browser.
+### City Mode and imported timetables
 
-### Install on iPhone or iPad
+Search or manually enter cities, save/rename/duplicate profiles, choose country Auto settings or a Manual method, and keep personal correction offsets without overwriting built-in defaults. Date-range previews can be exported as ICS, CSV, or shared plain text; profile sharing is a separate explicit action.
 
-1. Open the app in Safari.
-2. Tap the Share button.
-3. Tap **Add to Home Screen**.
-4. Confirm the install.
+For published mosque calendars, import **`.xlsx`, `.csv`, or `.json`** with at least **300 Gregorian dated rows** and Date, Fajr, Sunrise, Dhuhr/Zuhar, Asr, Maghrib, and Isha values. School-specific Asr/Isha columns are supported. Verify the parsed dates/times against the source before setting the profile as primary. Imported rows feed previews, primary prayer screens, linked Masjid schedules, and exports. Missing required rows produce feedback rather than silently inventing a mosque timetable.
 
-### Install on Android
+### Deep Search Athan
 
-1. Open the app in Chrome.
-2. Tap the menu button.
-3. Tap **Add to Home screen** or **Install app**.
-4. Confirm the install.
+Search a city, country, or coordinates such as `London`, `Makkah Saudi Arabia`, or `21.4225, 39.8262`. Choose a date range, calculation method, madhab, event inclusion, and reminder offset; preview before export. These selections are separate from main prayer defaults. An optional second alert can add another minutes-before alarm to each included event.
 
-### Install on Desktop
+Location/timezone/timetable lookup uses external services and can need internet even when the installed app shell opens offline.
 
-Supported browsers may show an install icon in the address bar.
+### Iqama Times and Masjid Mode
 
----
+Standalone **Iqama Times remains independently usable**. Configure fixed times or minutes-after-Athan rules, choose included prayers, load saved masjid rules where desired, preview, and export a range. Its existing device-location workflow and 10-minute calendar alert remain intact. Its optional Friday reminder retains the existing time controls.
 
-## Offline Support
+Masjid Mode stores named profiles with Iqama rules and configured Jumu‘ah slots. **Export Iqama Times** uses the selected profile, identifies the masjid in calendar metadata/filename, and includes configured Jumu‘ah slots only on applicable Fridays.
 
-The app is designed to work offline after it has been loaded and installed.
+The Athan source is the linked City Mode profile, preserving its calculation settings/corrections or imported timetable. With no link, the UI explicitly identifies the fallback to **current device location and prayer settings from Settings**. A missing linked profile is an error to resolve, not permission to use another city or masjid silently. Profile exports keep the established 10-minute alert.
 
-Some features may still require internet access, especially:
+### Ramadan Mode
 
-- First-time Quran loading
-- Location search
-- Advanced Athan city search
-- Timezone lookup
-- Prayer-time timetable fetching for searched locations
+Set Ramadan start and Eid dates manually. Record today’s Fasted, Missed, Makeup, or Not set status and notes; view Ramadan/Eid and Suhoor/Iftar countdowns. Its Fajr/Maghrib countdowns currently use **device location**, not a saved primary city. Ramadan dates do not come from an automatic Islamic-calendar API. Normal Home retains its conditional Ramadan entry; Custom Layout follows the chosen shortcut list.
 
-Locally cached data may continue working offline depending on browser support.
+## Quran reader and Qibla
 
----
+### Quran
 
-## Tech Stack
+Read Uthmani Arabic with the selected translation, use Arabic-only/bilingual views and font sizing, browse Surahs/Juz, find verses, save Surahs, and bookmark ayahs. Continue Reading, recently read, and per-Surah last-read positions use local reading progress.
 
-This project is built with:
+**Set as last read** records the chosen verse again even during a reread. **Complete Surah**, at the end of the reader, explicitly records completion. Completion and last-read position are separate; opening a saved position resumes after content has loaded.
 
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-- Progressive Web App support
-- `.ics` calendar export logic
+Quran Settings provides translation choices with a sample, bookmark controls, and **Download All Surahs / Resume Download** for Arabic text plus the selected translation. Removing downloaded text retains bookmarks/progress. Choosing another translation may require another download.
 
----
+**No Quran audio playback/download feature is connected to the current reader.** Text downloads do not download recitations. No all-Surah audio package or offline audio was added in v4.
 
-## Live App Links
+### Qibla
 
-Current aliases include:
+Qibla attempts location on opening and reuses available permissions. Retry controls remain when automatic startup cannot complete. Simple Mode offers turn/alignment guidance, distance, and optional vibration; Advanced Mode exposes bearing and verified device heading.
 
-- https://athan-pwa.vercel.app/
-- https://test-athan-pwa.vercel.app/
-- https://test-athan-app.vercel.app/
+iPhone uses its dedicated browser compass heading; supported Android paths use Earth-referenced absolute heading. Relative-only motion is not displayed as North. Initial iOS motion permission can require a tap; support varies by browser/device. Desktop machines often lack compass sensors. Sensor calibration, magnetic interference, location accuracy, and permissions affect results. Desktop/mocked tests do not replace physical-phone verification.
 
-All aliases are currently updated to the latest launch.
+## Private Salah Tracker
 
----
+Daily logging keeps Fajr, Dhuhr, Asr, Maghrib, and Isha prominent, with **Completed / Missed / Not logged**. Unknown is not a recorded miss. Mark All and Clear All affect only the five obligatory prayers; optional Sunnahs stay separate. Each day has a private note.
 
-## Dev Notes
+Insights, Search Salah Progress, and Graph Insights are separate destinations. Periods include This week, This month, Last 30 days, All recorded time, selected month, and custom dates. Week boundaries follow the existing tracker convention (Sunday start); future days are excluded.
 
-### May 18, 2026 — v2.01.1
+### Stars versus existing statistics
 
-Version v2.01.1 includes:
+| Measure | Definition |
+| --- | --- |
+| Daily stars | One star per completed obligatory prayer, always `x/5` |
+| Period stars | Total completed prayers / `5 × elapsed calendar days` |
+| Average stars | Total stars / elapsed calendar days, shown out of five |
+| Completion rate | Completed / logged prayers; logged means completed or missed |
+| Verified streak | Consecutive calendar days completed for that prayer; missed and missing/unlogged days break it |
 
-- Advanced Athan updates
-- Custom location search
-- Date-range prayer previews
-- Custom `.ics` calendar export
-- Calculation method selection
-- Madhab selection
-- Reminder offset selection
-- Dev Notes section
-- Updated Need Help section
-- Updated public URL/domain notes
+Example: **3 completed, 1 missed, 1 unlogged = 3/4 logged (75%), but ★ 3/5 stars**. For stars, missed and unknown both earn zero; unknown records are never changed into missed records. Blank elapsed days lower the star average. No overall grade is assigned.
 
-### Advanced Athan
+The calendar keeps its completed/logged fraction, with `★ x/5` beneath it. Future cells are neutral. Period summaries show total/capacity, average/day, and logging coverage; all-time starts at the earliest applicable obligatory record instead of adding pre-tracking years.
 
-Advanced Athan was added as a separate system so users can generate prayer times and reminders for locations other than their current device location.
+Per-prayer insights show completed/logged counts, contextual percentages, current streak ending at the selected range’s last day, and longest streak within the range. Summaries compare consistency with coverage, improvement with the immediately preceding equal-length period, fully completed days with fully logged context, and weekdays using logged records. Graphs retain completion bars and weekly/monthly line trends; no logged data creates a gap rather than a zero-rate miss.
 
-### Calendar Export
+### Salah search language
 
-The `.ics` calendar export feature helps users create prayer reminders in their own calendar apps.
+Searches return **days**, not individual prayers. Names are case-insensitive; prayer aliases include common spellings such as Dhuhr/Duhur and Maghrib/Magrib. Numbers **1–5** mean Fajr, Dhuhr, Asr, Maghrib, Isha—not star counts.
 
-This is useful because calendar apps can handle alerts across devices without requiring the PWA to run in the background.
+| Query | Meaning |
+| --- | --- |
+| `fajr` or `1` | Fajr completed, regardless of the other prayers |
+| `!fajr` or `!1` | Fajr explicitly missed |
+| `~fajr` or `~1` | Fajr not logged |
+| `/fajr` or `/1` | Fajr missed or not logged |
+| `fajr&dhuhr` | Both completed |
+| `!2,!3` | Dhuhr or Asr explicitly missed |
+| `[fajr&dhuhr]` or `[1&2]` | Only these prayers completed; others may be missed or unknown |
+| `(notes)` / `(note)` | A non-whitespace daily note exists |
+| `(!notes)` | No note |
+| `(notes)&!fajr` | Note present and Fajr missed |
+| `(logged5)` | All five completed or missed |
+| `(!logged5)&(26y)` | Fewer than five logged in 2026 |
+| `(star3)` / `(stars3)` / `done3` | Exactly three completed prayers, fixed daily capacity five |
+| `(star(3-5))` / `done3-5` | Three–five completed prayers |
+| `(logged(3-5))` | Three–five recorded prayer statuses |
+| `(mon)` / `(Monday)` | Mondays |
+| `(mon)&((logged5),(notes))` | Mondays that are fully logged or contain notes |
+| `(last30days)&fajr` | Fajr completed today or during the preceding 29 dates |
 
----
+`&` is AND; comma/semicolon are OR. AND binds before OR; parentheses explicitly group conditions. `A&(B,C)` distributes like `(A&B),(A&C)`. Square brackets are reserved for exact completed-prayer sets—not arbitrary attribute groups. `!` can negate notes/counts/weekdays/relative predicates, but prayer `!` retains its explicit-Missed meaning. `~` and `/` apply to prayers.
 
-## Known Notes
+#### Dates and inclusive component ranges
 
-- Prayer times may differ slightly between sources because calculation methods differ.
-- Qibla accuracy depends on device sensors and GPS.
-- Calendar alerts are handled by the calendar app, not directly by the PWA.
-- High-latitude locations may require users to compare results with a local masjid or scholar.
-- Advanced Athan may use external APIs for location, timezone, or timetable data.
+- `Oct.30`: every October 30 across recorded years.
+- `2026y.6m.23d`, `6m.2026y.23d`, and `23d.Jun.26y`: June 23, 2026.
+- `5m`: May in any year; `5m.26y`: May 2026; `2026y`: dates in 2026.
+- `June`, `Jun`, and `6m` are month aliases. Two-digit years mean **2000–2099**.
+- When two components are identified, one exact numeric component can be inferred: `10m.23d.26` and `10.23d.2026y` both identify October 23, 2026. The special `Oct.23` form means day 23, not year 2023.
+- `(23d.06m.2026y)&fajr`: the date plus Fajr completed.
+- `((1-15)d.Jun.26y)&fajr`: June 1–15, 2026 with Fajr completed.
+- `((2-5)m.(21-30)d.(25-26)y)`: February–May, days 21–30, in 2025–2026. Components apply together, **not** one continuous interval. Nonexistent dates are not generated.
+- `(star(3-5))&((25-26)y)`: three–five stars in 2025–2026.
 
----
+Range components require their `m`, `d`, or `y` label and may be reordered. Impossible exact dates, reversed/out-of-bounds ranges, duplicate components, and ambiguous input produce errors.
 
-## Support and Need Help
+Default scope is recorded dates through today. An explicit fixed date range can also include blank dates; negative notes or zero-count filters never manufacture an unlimited calendar. Queries and explicit ranges are bounded for lightweight operation (2,048 query characters; approximately ten years per bounded range).
 
-For help, troubleshooting, and usage guidance, read the **Need Help** section inside the app.
+#### Saved/recent searches and result summaries
 
-For feedback or bug reports, contact:
+Save a valid query with a name, reopen it, rename it, or remove it. Stored definitions rerun against current records—no copied history. Up to 30 named searches and eight recent valid queries are retained; examples/suggestions are local.
 
-```txt
-aaa.maq.contact.us@gmail.com
+Saved fixed scopes preserve From/Through and the blank-date choice. `last30days` rolls when reopened; if combined with a fixed scope, both restrictions apply. Recent queries reuse the **current** scope rather than restoring a saved date range.
+
+Results show matching days and completed/missed/not-logged totals summing to five per result. Result stars have matching-day capacity; they are not an average over the whole selected calendar period. Tap a result to open its day in Tracker.
+
+## Calendar reminders (.ics)
+
+Settings, City Mode, standalone Iqama, Deep Search Athan, and Masjid Mode use a **shared event model, serializer, and download helper**. It supports escaped/folded text, calendar metadata, stable UIDs, duplicate-UID handling, UTC or floating local timestamps, and independent alarms including event-time alerts.
+
+| Exporter | Preserved choices and behavior |
+| --- | --- |
+| Settings | Primary source, 1/7/30/365-day choices, regular six prayer-time events, chosen reminder offset, optional second alert, fixed Isha, Friday Jumu‘ah, and private Salah review |
+| Deep Search Athan | Searched source, event inclusion, custom range/calculation context, explicit UTC instants, chosen reminder and optional second alert |
+| City Mode | Selected profile, date range, six events/day, existing 10-minute alert |
+| Standalone Iqama | Rules, selected prayers, range, Friday option, device-location workflow, existing 10-minute alert |
+| Masjid Mode | Selected profile’s rules/Friday slots, linked city or explicit fallback, range, existing 10-minute alert |
+
+Settings and Deep Search use rich prayer descriptions with location/source, calculation method, madhab, and timezone/offset context. Settings follows the primary source, including saved corrections/imported timetable rows. Regular events use UTC instants; calendar apps may display the same instant in a traveling device’s timezone. Other exporters retain their established floating/UTC semantics rather than silently changing schedules.
+
+The optional **Review today’s Salah Tracker** reminder is configured in Settings, not downloaded from Tracker. Its neutral title/description never includes history or notes. Include it explicitly in Settings exports or export without it. Fixed Isha/Jumu‘ah/review events keep their own existing single-alert behavior; the second-alert option applies to regular prayer-time events.
+
+Import the file into your calendar app. **Calendar apps—not a PWA timer—deliver alerts after the app closes.** Permissions, notification settings, import behavior, and alarm support depend on that calendar. Re-exporting does not automatically update existing imports; use a separate Athan calendar and replace old events/files as appropriate to avoid duplicates.
+
+## Installation, offline use, and updates
+
+- **iPhone/iPad:** Safari → Share → Add to Home Screen → confirm.
+- **Android:** supported browser → Install app/Add to Home screen, or the offered install control.
+- **Desktop:** supported browsers may expose an install icon in the address bar.
+
+A successful online visit and service-worker caching can make the app shell/features available offline. Installation alone is not proof every resource was cached. Feature code cached on disk can still remain unexecuted until opened. Local Salah records/preferences and local calculations do not require uploading history.
+
+Internet can still be needed for first app access, uncached files/translations, location search/reverse geocoding, timezone lookup, and Deep Search timetables. Device location permission is separate from internet access; geolocation availability depends on the platform. One reachable service does not establish that Vercel or another API is reachable.
+
+Use Settings → PWA status to inspect the loaded version and check for updates. Failed checks retain the current usable app/offline files; updates do not intentionally erase personal records or Quran caches. Screen failures offer retry and safe Home/Settings/Hub navigation instead of blanket data clearing. An installed PWA can still encounter uncached resource failures or browser storage eviction.
+
+## Backup, restore, reset, and privacy
+
+Personal JSON backups include prayer settings/reminders, saved city/manual timetable and masjid profiles, Salah logs/notes, Ramadan records, Quran bookmarks/progress/preferences, layout order/visibility, section expansion, Performance Mode/priorities, and saved/recent queries. Store backups carefully: **they contain personal records**.
+
+Restore validates new known preferences and keeps older backups compatible. Backup format version and app release version are separate. On fresh installations, missing new preferences use normal defaults. Import is not an automatic synchronization service. Reset layout changes only layout; explicit app-data reset targets Athan’s allowlisted local data, not unrelated websites. Downloaded Quran text has its own removal control.
+
+Backups contain Quran offline **metadata**, not Cache Storage response files. Restoring metadata on another device does not restore downloaded Arabic/translation text; download it again if needed. Browser data clearing, uninstall behavior, storage limits, and domain changes can affect local records—export a backup first.
+
+**Share Your Defaults is not a personal backup.** It shares the supported calculation/reminder defaults, not Salah logs, daily notes, tracker-review preferences, layout/performance/disclosure preferences, saved/recent queries, Quran progress, or personal profile/location data. City/Masjid/timetable sharing is a separate deliberate action and includes the profile information the user chooses to share.
+
+No accounts, ads, advertising trackers, or tracker-history uploads are added. Personal records stay locally by default. External services can receive requested locations, dates, selected translation/calculation information, and normal network metadata needed to return requested content; “local history” does not mean the app never makes network requests.
+
+## External services and credits
+
+- **OpenStreetMap contributors / Nominatim:** location search and readable place names. Location data © OpenStreetMap contributors.
+- **TimeAPI:** timezone resolution for searched coordinates when needed.
+- **AlAdhan:** Deep Search prayer timetables.
+- **AlQuran Cloud:** requested Quran Arabic/translation content.
+- **Adhan calculation library:** local prayer calculations.
+- **React, TypeScript, Vite, Tailwind CSS, vite-plugin-pwa, and spreadsheet import dependencies:** application/build tooling.
+
+See Credits inside the app for acknowledgments and support links. External-service availability and browser capability vary; compare prayer times/Qibla with trusted local guidance when unsure.
+
+## Development
+
+Install Node.js/npm compatible with the repository’s dependencies. From the checkout:
+
+```sh
+npm ci
+npm run dev
 ```
 
----
-## Support the Project
+Checks and production preview:
 
-If this app benefits you, you may support the project through the link provided in the Credits page.
+```sh
+npm run test:run
+npm run lint
+npm run build
+npm run preview
+```
 
-Athan PWA is built as a community-focused project, not as an ad-driven product. Any support helps with development, testing, hosting, and future improvements.
+The build runs TypeScript and Vite and generates the PWA assets. Tests cover pure search/stats, calendar output, backup/privacy, loaders/recovery, and UI behavior. Development-server checks do not prove production offline caching; verify that against a production build. Browser throttling/mocked permissions are supporting evidence, not real low-RAM phone or physical compass testing.
 
-Support is optional. The app is intended to remain simple, useful, and accessible.
+Development remains on the existing Git/Vercel workflow. Version/date metadata, Developer Notes, Credits, and the README must agree with the delivered build. Planning/runbooks and verification limitations must not be represented as completed implementation evidence.
 
----
+## Support
+
+Read **Credits → Need Help** for troubleshooting, method guidance, Quran/bookmark behavior, and calendar-import steps. Feedback/bug reports should describe the device, browser, and issue; avoid sending private worship records unnecessarily.
+
+Feedback contact: **aaa.maq.contact.us@gmail.com**.
+
+Support is optional through the Credits page’s project-support link. Athan PWA is community-focused, not ad-driven; contributions help development, testing, hosting, and improvements without making the app’s daily purpose more complicated.
 
 ## Copyright
 
@@ -535,18 +326,8 @@ This includes, but is not limited to:
 
 © BiG MAQ Studio. All rights reserved.
 
----
+## Final note
 
-## Final Note
-
-Athan PWA was built to help Muslims pray on time with a clean, lightweight, and privacy-respecting experience.
-
-The aim is simple: make a useful Islamic web app without ads, unnecessary tracking, or distractions.
-
-Our motto is:
-
-> “we know neither your birthday nor your shoe size and we'd like to keep it that way”
+Athan PWA was built to help Muslims pray on time with a clean, lightweight, privacy-respecting experience. The aim is simple: a useful Islamic web app without ads, unnecessary tracking, or distractions.
 
 May Allah accept it, make it beneficial, and allow it to help people remember their prayers on time.
-
----

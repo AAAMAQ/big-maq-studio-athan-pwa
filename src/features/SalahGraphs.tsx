@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
-import { calculateSalahRangeInsights, formatSalahDate, SALAH_PRAYERS, type SalahRangeSelection } from '../lib/salahInsights'
-import { loadSalahStore } from '../lib/salahStore'
+import { calculateSalahRangeInsights, formatSalahDate, parseSalahDate, SALAH_PRAYERS, type SalahRangeSelection } from '../lib/salahInsights'
+import { useSalahData } from '../lib/useSalahData'
 import SalahRangePicker from './SalahRangePicker'
 
 export default function SalahGraphs({ onOpenDay }: { onOpenDay: (date: string) => void }) {
-  const [store] = useState(loadSalahStore)
+  const { store, todayKey } = useSalahData()
   const [selection, setSelection] = useState<SalahRangeSelection>({ kind: 'preset', period: 'month' })
   const result = useMemo(() => {
-    try { return { insights: calculateSalahRangeInsights(store, selection), error: '' } }
+    try { return { insights: calculateSalahRangeInsights(store, selection, parseSalahDate(todayKey)!), error: '' } }
     catch (error) { return { insights: null, error: error instanceof Error ? error.message : 'Choose a valid range.' } }
-  }, [store, selection])
+  }, [store, selection, todayKey])
   const insights = result.insights
 
   return (
@@ -20,6 +20,7 @@ export default function SalahGraphs({ onOpenDay }: { onOpenDay: (date: string) =
       {insights ? (
         <>
           <p className="text-sm text-gray-300">{insights.periodLabel} · {insights.rangeLabel} · {insights.daysWithLogs} day{insights.daysWithLogs === 1 ? '' : 's'} with obligatory logs</p>
+          <p className="rounded-lg bg-gray-800 p-4 text-sm"><span className="font-semibold text-teal-300">★ {insights.stars.total}/{insights.stars.possible} stars</span> · {insights.stars.averagePerDay === null ? 'No recorded-time average yet' : `${insights.stars.averagePerDay.toFixed(2)}/5 average across ${insights.stars.elapsedDays} elapsed days`}. Blank past days earn zero stars; the existing graphs below use logged-data rates.</p>
           <section className="rounded-lg bg-gray-800 p-4 space-y-4">
             <h2 className="text-lg font-semibold">Prayer completion</h2>
             {SALAH_PRAYERS.map((prayer) => {
@@ -42,6 +43,7 @@ export default function SalahGraphs({ onOpenDay }: { onOpenDay: (date: string) =
                 <button key={point.key} type="button" onClick={() => onOpenDay(date)} className="block w-full rounded bg-gray-900 p-3 text-left hover:outline hover:outline-1 hover:outline-teal-500 focus:outline focus:outline-2 focus:outline-teal-400" aria-label={`${point.label}: ${point.rate === null ? 'no logged data' : `${point.completed} of ${point.logged} logged prayers completed, ${point.rate}%`}. Open ${date} in tracker`}>
                   <span className="flex justify-between gap-2 text-sm"><span>{point.label}</span><span className="text-gray-300">{point.rate === null ? 'No logged data' : `${point.rate}% · ${point.completed}/${point.logged} logged`}</span></span>
                   <span className={`mt-2 block h-3 rounded ${point.rate === null ? 'border border-dashed border-gray-500' : 'bg-gray-700'}`}><span className="block h-full rounded bg-teal-500" style={{ width: `${point.rate ?? 0}%` }} /></span>
+                  <span className="mt-2 block text-xs text-teal-300">★ {point.stars}/{point.possibleStars} stars · {(point.stars / point.elapsedDays).toFixed(2)}/5 average over {point.elapsedDays} elapsed days</span>
                 </button>
               )
             })}

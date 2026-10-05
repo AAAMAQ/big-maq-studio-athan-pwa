@@ -37,9 +37,12 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         <a href="#downloadapp" className="underline">Download & install the app</a>
         <a href="#downloadics" className="underline">Download and Set reminders via Calendar (.ics)</a>
         <a href="#salah-search" className="underline">Search Salah progress</a>
+        <a href="#layout-performance" className="underline">Layout & performance</a>
+        <a href="#salah-stars" className="underline">Salah stars & statistics</a>
+        <a href="#backups-offline" className="underline">Backups, offline files & updates</a>
         <a href="#whatsnew" className="underline">What&apos;s new?</a>
         <a href="#qibla" className="underline">Qibla not accurate?</a>
-        <a href="#v3features" className="underline">v3.2.2 features</a>
+        <a href="#v3features" className="underline">Existing feature guide</a>
         <a href="#quran" className="underline">How to use the Quran</a>
         <a href="#bookmarks" className="underline">Quran bookmarks</a>
         <a href="#location" className="underline">Location & accuracy</a>
@@ -49,6 +52,35 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         <a href="#calculation" className="underline">Calculation method, Madhab & High-latitude rule</a>
         <a href="#troubleshooting" className="underline">Troubleshooting & contact</a>
       </nav>
+
+      <section id="layout-performance" className="space-y-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
+        <h2 className="text-xl font-semibold">v4.0.0 — Your App, Your Flow</h2>
+        <p className="text-sm text-gray-200">Open Settings → Performance &amp; App Layout. Custom Layout and Performance Mode are independent and off by default; the usual Home / Prayer / Settings navigation remains until you choose a custom layout.</p>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-gray-200">
+          <li>Home stays first. Choose, remove, or reorder up to four extra navigation buttons; Home&apos;s prayer preview and source/date information stay protected.</li>
+          <li>Edit Home and More shortcuts using Add, Remove, and Up/Down controls. The same feature can appear on different surfaces without creating separate data.</li>
+          <li>Preview is a draft. Save layout applies it; Cancel discards unsaved edits. Reset prepares a standard-layout draft until saved. Switching Custom Layout off keeps your custom lists for later.</li>
+          <li>If Settings is removed from navigation, it appears at Home&apos;s top right. Protected Feature Hub access on custom Home and More lets you open hidden features. Adding a Hub shortcut enables Custom Layout.</li>
+          <li>Performance Mode changes internal loading only—not appearance, animations, prayer calculations, or features. Choose priorities and save performance preferences separately.</li>
+          <li>Priority prepares code after Home can render; it does not open a feature, request permissions, or automatically download content. Hidden features load when opened. Saved records are never deleted; already-imported code may remain in memory.</li>
+        </ul>
+        <p className="text-sm text-gray-200">Everyone gets Settings − / + section controls, initially expanded. Collapse simply hides the controls while preserving their state and intentional work; it is not deep sleep. Your expansion choices are remembered.</p>
+      </section>
+
+      <section id="salah-stars" className="space-y-3">
+        <h2 className="text-xl font-semibold">Salah stars are different from logged-only rates</h2>
+        <p className="text-sm text-gray-200">One completed obligatory prayer earns one star, always out of five. Missed and not logged both earn zero stars, but their original statuses remain separate. Sunnahs do not earn obligatory stars.</p>
+        <p className="rounded-lg border border-teal-900 bg-teal-950/20 p-3 text-sm text-gray-200">Three completed, one missed, one unlogged: <strong>★ 3/5 stars</strong>, but <strong>3/4 logged = 75%</strong> in existing statistics. The calendar shows the logged fraction and stars separately.</p>
+        <p className="text-sm text-gray-200">Period capacity is five times the elapsed calendar days. Blank past days lower average stars without becoming missed records; future days are excluded. Insights shows total/capacity, average per day, and logging coverage. Verified streaks still break on missing, unlogged, or missed days.</p>
+      </section>
+
+      <section id="backups-offline" className="space-y-3">
+        <h2 className="text-xl font-semibold">Backups, offline files &amp; safe updates</h2>
+        <p className="text-sm text-gray-200">Personal Backup &amp; Restore includes records, notes, profiles, Quran progress/bookmarks, reminder settings, layout and section preferences, Performance Mode/priorities, and saved/recent searches. Keep backup files private. Share Your Defaults excludes these private histories and new layout/search preferences.</p>
+        <p className="text-sm text-gray-200">A JSON backup does not contain downloaded Quran response files. On another installation, download Arabic text and the selected translation again if needed. No Quran audio playback or audio-download option is connected to this reader; text downloads do not include recitations.</p>
+        <p className="text-sm text-gray-200">Installing alone does not cache every file. Uncached Quran content, location/timezone searches, Deep Search schedules, and new app versions can require a connection to their respective website or service. Cached feature code can stay on disk without running in memory.</p>
+        <p className="text-sm text-gray-200">Use Settings → PWA status → Check for update. A failed check preserves the current app and offline files so you can retry later. Screen errors offer Retry or Home/Settings/Feature Hub; do not erase your data as the first troubleshooting step. Export a backup before clearing browser storage or reinstalling.</p>
+      </section>
 
 
       {/* WHAT'S NEW */}
@@ -143,7 +175,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
       </section>
 
       <section id="v3features" className="space-y-2">
-        <h2 className="text-xl font-semibold">v3.2.2 feature guide</h2>
+        <h2 className="text-xl font-semibold">Existing feature guide</h2>
         <div className="space-y-3 text-sm text-gray-200">
           <p>
             <span className="font-semibold text-teal-300">Qibla:</span> Simple Mode gives a large readable compass,
@@ -341,8 +373,8 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
             angle.
             <br />
             <span className="font-semibold">Fix:</span> Step near a window or go outdoors for a more accurate
-            location, then reopen the Qibla screen or tap <span className="font-semibold">Refresh</span> on the Home
-            screen to update your position.
+          location, then reopen Qibla or use its <span className="font-semibold">Enable Location</span> retry
+            when shown to update your position.
           </li>
           <li>
             <span className="font-semibold">Poor internet connection:</span> On some devices, a very weak data
@@ -423,10 +455,9 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
               same device will keep your preferred reading size even after you close the tab.</li>
         </ul>
 
-        <p className="text-gray-300 text-xs">
-          Quran in the web app is currently in <span className="font-semibold">beta</span>. More translations and
-          navigation options (like Juz and Hizb navigation) may be added in future updates.
-        </p>
+        <h3 className="font-semibold text-teal-300 text-sm mt-2">Reading progress and offline text</h3>
+        <p className="text-gray-200 text-sm">Use Set as last read at a verse to save your position, including during rereads. Complete Surah at the bottom records completion separately. Continue Reading and saved Surah positions resume after verses load. The Quran hub also provides Juz navigation and verse lookup.</p>
+        <p className="text-gray-300 text-xs">Quran Settings → Download All Surahs saves Arabic text and the selected translation, not audio. Resume Download retries incomplete text downloads. Remove Download keeps bookmarks and reading progress.</p>
       </section>
 
       {/* BOOKMARKS HELP */}
@@ -615,9 +646,9 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         <h2 className="text-xl font-semibold">📱 How to Install Athan App (Android & iPhone)</h2>
 
         <p className="text-gray-200 text-sm">
-          This is the <span className="font-semibold">beta-testing</span> launch of the Athan web app. You can
-          install it to your home screen so it behaves like a normal app and works offline after the first load.
-          The current beta is available at:
+          Athan is a browser-based app. You can
+          install it to your home screen so it behaves like a normal app; successfully cached content can work offline.
+          An existing test address is:
         </p>
         <p className="text-teal-300 text-sm font-mono break-all">
           https://test-athan-pwa.vercel.app/
@@ -661,7 +692,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
 
         <hr className="border-gray-700 my-3" />
 
-        <h3 className="font-semibold text-teal-300 text-sm mt-2">🍎 Install on iPhone (iOS – Safari only)</h3>
+        <h3 className="font-semibold text-teal-300 text-sm mt-2">🍎 Install on iPhone (Safari workflow)</h3>
         <p className="text-gray-200 text-sm">
           Apple requires a few extra steps, but it&apos;s still very easy:
         </p>
@@ -672,7 +703,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
             Visit: <span className="font-mono text-teal-300">https://test-athan-pwa.vercel.app/</span>
             <br />
             <span className="text-xs text-gray-300">
-              Important: iOS only allows installation from <span className="font-semibold">Safari</span>, not Chrome.
+              For the documented iPhone workflow, use <span className="font-semibold">Safari</span> and its Share menu.
             </span>
           </li>
           <li>
@@ -706,10 +737,9 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
         </div>
 
         <p className="text-gray-300 text-xs mt-2">
-          After you install the app to your home screen using the above steps, it will work offline after the first
-          successful load, InshaAllah. Some features like initial Quran loading still need an internet connection the
-          first time you open them, but afterwards the app is designed to be lightweight and cache data on your
-          device.
+          After a successful online load and caching, saved app files can work offline, InshaAllah. Installation does
+          not guarantee that every feature response or translation has been downloaded. Initial or uncached content
+          can still need internet; Quran text downloads are separate from the app-shell cache.
         </p>
       </section>
 
@@ -807,7 +837,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
 
         <h3 className="font-semibold mt-3">Step-by-step: Exporting reminders</h3>
         <ol className="list-decimal pl-5 space-y-1 text-gray-200">
-          <li>Open the <span className="font-semibold">Settings</span> tab at the bottom of the app.</li>
+          <li>Open <span className="font-semibold">Settings</span> from navigation, or Home&apos;s protected top-right button if your custom navigation omits it.</li>
           <li>Scroll to the section called <span className="font-semibold">Reminders via Calendar (.ics)</span>.</li>
           <li>
             In <span className="font-semibold">Reminder offset (minutes before each prayer)</span>, choose how many
@@ -835,7 +865,7 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           <li>
             When the .ics file finishes downloading, open it. Your device will ask which calendar to add the events to –
             you can use an existing calendar or create a new one like. Its better to create a  <span className="font-semibold">  NEW CALENDAR </span> named
-            <span className="font-semibold"> &quot;Athan Reminders&quot;</span> to keep them separate. This will make sure that it will be easy to delete if you travel. As Calendar apps do not support mass event deleting.
+            <span className="font-semibold"> &quot;Athan Reminders&quot;</span> to keep them separate. A dedicated calendar can make replacement easier when travelling; deletion/import behavior depends on your calendar app.
           </li>
           <li>
             Make sure that calendar is visible in your calendar app and that notifications are allowed for it in your
@@ -903,6 +933,14 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           <li><code>10m.23d.26</code> and <code>10.23d.2026y</code> infer the missing label and both find October 23, 2026.</li>
           <li><code>(23d.06m.2026y)&amp;fajr</code> finds June 23, 2026 if Fajr was completed.</li>
           <li><code>(Jun.26y)&amp;fajr</code> finds June 2026 days when Fajr was completed.</li>
+          <li><code>(notes)&amp;!fajr</code> finds days with a nonempty note and Fajr explicitly missed. <code>note</code> is an alias; <code>(!notes)</code> finds no note.</li>
+          <li><code>(logged5)&amp;(26y)</code> finds fully logged days in 2026. <code>(!logged5)&amp;(26y)</code> finds fewer than five recorded prayer statuses.</li>
+          <li><code>(star3)</code>, <code>(stars3)</code>, and <code>done3</code> mean exactly three completed prayers. <code>(star(3-5))</code> or <code>done3-5</code> means three to five.</li>
+          <li><code>(logged(3-5))</code> finds three to five completed-or-missed entries; unlogged prayers do not count as logged.</li>
+          <li><code>(mon)&amp;((logged5),(notes))</code> finds Mondays that are fully logged OR contain notes. Monday applies to both alternatives; a day matching both appears once.</li>
+          <li><code>((2-5)m.(21-30)d.(25-26)y)</code> finds February–May, days 21–30, in 2025–2026. It is a component filter, not one continuous interval.</li>
+          <li><code>(star(3-5))&amp;((25-26)y)</code> finds three–five stars in 2025–2026.</li>
+          <li><code>(last30days)&amp;fajr</code> finds Fajr completed today or within the preceding 29 dates.</li>
         </ul>
         <p className="text-sm text-gray-200">
           Join date parts with a dot in any order. June, Jun, and 6m are equivalent, and month names are not case-sensitive.
@@ -914,6 +952,11 @@ export default function NeedHelp({ go, backTarget = 'Credits' }: Props) {
           today by default. Enable the date-range option to include days with no records. Invalid dates, such as February 30,
           show an error rather than changing your records.
         </p>
+        <p className="text-sm text-gray-200">Full and short weekday names work, case-insensitively: Monday/mon through Sunday/sun. AND (&amp;) binds before OR (comma/semicolon); parentheses control grouping, like A&amp;(B,C). Square brackets remain exclusively for exact completed-prayer sets. Use ! with notes, counts, weekdays, or relative terms to negate their condition; !prayer still means explicitly missed, never unknown.</p>
+        <h3 className="text-sm font-semibold text-teal-300">Save a useful search</h3>
+        <p className="text-sm text-gray-200">Give a valid query a name and tap Save search. Reopen, rename, or remove it in Saved searches; it reruns against your current records rather than saving a copy of history. A fixed From/Through scope keeps its dates and blank-day choice. last30days rolls when reopened; a saved fixed scope still restricts it if both are used.</p>
+        <p className="text-sm text-gray-200">Recent queries use the current scope. Examples are local and require no search service. Up to 30 named searches and eight recent queries are stored. Query length and explicit ranges are bounded; blank-date searches require a range rather than creating an unlimited calendar.</p>
+        <p className="text-sm text-gray-200">The result summary shows matching-day completed, missed, and not-logged totals, plus stars out of five per matching day. These totals describe matching results, not the whole period&apos;s average. Tap a result to reopen the day in Tracker.</p>
         <p className="text-xs text-gray-400">
           A missed prayer is a recorded status. A prayer left unlogged is unknown and is never counted as missed.
           Search, notes, and graphs stay on your device.

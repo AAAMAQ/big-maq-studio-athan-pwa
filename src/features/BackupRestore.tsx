@@ -30,7 +30,7 @@ export default function BackupRestore({ go }: Props) {
       setMessage(`Imported ${count} saved app items. Reload the app to see all restored data.`)
     } catch (error) {
       console.error('Failed to import backup', error)
-      setMessage('Invalid backup file. Please choose a valid Athan PWA backup JSON file.')
+      setMessage(error instanceof Error ? error.message : 'Could not restore this backup. Please keep the file and retry.')
     } finally {
       if (inputRef.current) inputRef.current.value = ''
     }
@@ -39,8 +39,12 @@ export default function BackupRestore({ go }: Props) {
   function resetData() {
     const confirmed = window.confirm('Reset Athan PWA local app data on this device? This cannot be undone unless you have a backup.')
     if (!confirmed) return
-    const count = resetAthanAppData()
-    setMessage(`Reset ${count} local app items. Reload the app to start fresh.`)
+    try {
+      const count = resetAthanAppData()
+      setMessage(`Reset ${count} local app items. Reload the app to start fresh.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not reset device storage.')
+    }
   }
 
   function goBack() {
@@ -61,6 +65,7 @@ export default function BackupRestore({ go }: Props) {
         <p className="rounded border border-teal-700 bg-teal-950/40 p-3 text-sm text-teal-100">
           Your backup file stays on your device. Athan PWA does not upload your data. Importing a backup may replace current local app data.
         </p>
+        <p className="text-sm text-gray-300">Includes layout, performance priorities, Settings expansion, tracker records and notes, saved searches, profiles and reminders. Downloaded Quran text files are not embedded in backups; download them again on a new device if needed.</p>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <button type="button" onClick={exportData} className="rounded bg-teal-600 hover:bg-teal-500 px-4 py-3 font-semibold">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import SettingsSection from './SettingsSection'
 import { t, type AppLanguage } from '../lib/i18n'
 import {
   ATHAN_APP_UPDATED_AT,
@@ -62,11 +63,18 @@ export default function PwaStatus({ language = 'en' }: Props) {
 
   async function updateApp() {
     setChecking(true)
-    await refreshAthanApp((status) => {
-      if (status === 'checking') setMessage(t('checkingForUpdate', language))
-      if (status === 'reloading') setMessage(t('reloadingLatest', language))
-      if (status === 'fallback') setMessage(t('updateClearFailed', language))
-    })
+    try {
+      await refreshAthanApp((status) => {
+        if (status === 'checking') setMessage(t('checkingForUpdate', language))
+        if (status === 'reloading') setMessage(t('reloadingLatest', language))
+        if (status === 'ready') setMessage('Update check completed. Your current app is ready.')
+        if (status === 'fallback') setMessage('Could not check for an update. Your current app and offline files are preserved; try again when connected.')
+      })
+    } catch {
+      setMessage('Could not check for an update. Your current app and offline files are preserved; try again when connected.')
+    } finally {
+      setChecking(false)
+    }
   }
 
   const releaseDate = new Intl.DateTimeFormat(language === 'ar' ? 'ar' : 'en', {
@@ -77,9 +85,8 @@ export default function PwaStatus({ language = 'en' }: Props) {
   const versionsMatch = installedVersion === ATHAN_APP_VERSION
 
   return (
-    <section className="rounded-lg border border-gray-700/80 bg-gray-800/90 p-4 shadow-sm sm:p-5">
+    <SettingsSection id="pwa" title={t('pwaStatus', language)}>
       <div>
-        <h2 className="font-semibold text-white">{t('pwaStatus', language)}</h2>
         <p className="mt-1 text-xs leading-5 text-gray-400">
           {online ? t('onlineReady', language) : t('offlineReady', language)}
           {' · '}
@@ -132,7 +139,7 @@ export default function PwaStatus({ language = 'en' }: Props) {
           {message}
         </p>
       )}
-    </section>
+    </SettingsSection>
   )
 }
 

@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react'
-import { calculateSalahRangeInsights, SALAH_PRAYERS, type SalahPeriodInsights, type SalahRangeSelection } from '../lib/salahInsights'
-import { loadSalahStore } from '../lib/salahStore'
+import { calculateSalahRangeInsights, parseSalahDate, SALAH_PRAYERS, type SalahPeriodInsights, type SalahRangeSelection } from '../lib/salahInsights'
+import { useSalahData } from '../lib/useSalahData'
 import SalahRangePicker from './SalahRangePicker'
 
 export default function SalahInsights() {
-  const [store] = useState(loadSalahStore)
+  const { store, todayKey } = useSalahData()
   const [selection, setSelection] = useState<SalahRangeSelection>({ kind: 'preset', period: 'month' })
   const result = useMemo(() => {
-    try { return { insights: calculateSalahRangeInsights(store, selection), error: '' } }
+    try { return { insights: calculateSalahRangeInsights(store, selection, parseSalahDate(todayKey)!), error: '' } }
     catch (error) { return { insights: null, error: error instanceof Error ? error.message : 'Choose a valid range.' } }
-  }, [store, selection])
+  }, [store, selection, todayKey])
   const insights = result.insights
 
   return (
@@ -23,6 +23,11 @@ export default function SalahInsights() {
       {insights ? (
         <>
           <p className="text-sm text-gray-300">{insights.periodLabel} · {insights.rangeLabel} · {insights.daysWithLogs} day{insights.daysWithLogs === 1 ? '' : 's'} with at least one obligatory prayer logged</p>
+          <section aria-label="Fixed-capacity Salah stars" className="rounded-lg bg-gray-800 p-4">
+            <h2 className="font-semibold text-teal-300">★ {insights.stars.total}/{insights.stars.possible} stars</h2>
+            <p className="mt-1 text-sm text-gray-300">Average: {insights.stars.averagePerDay === null ? '—' : `${insights.stars.averagePerDay.toFixed(2)}/5 stars per day`} · {insights.stars.elapsedDays} elapsed calendar days</p>
+            <p className="mt-1 text-xs text-gray-400">{insights.daysWithLogs}/{insights.stars.elapsedDays} days with obligatory logs. Missed and unlogged slots earn zero stars, including blank past days. Completion rates below use logged prayers only.</p>
+          </section>
           {insights.daysWithLogs === 0 ? <p className="rounded bg-gray-800 p-4 text-sm text-gray-300">No obligatory prayer data is logged for this period.</p> : null}
           <section aria-label="Per-prayer statistics" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {SALAH_PRAYERS.map((prayer) => {
@@ -49,6 +54,7 @@ export default function SalahInsights() {
                 <div key={point.key} className="rounded bg-gray-900 p-3">
                   <div className="flex items-center justify-between gap-3 text-sm"><span>{point.label}</span><span className="text-gray-400">{point.rate === null ? 'No logged data' : `${point.rate}% · ${point.completed}/${point.logged} logged`}</span></div>
                   <div className="mt-2 h-2 rounded bg-gray-700"><div className="h-2 rounded bg-teal-500" style={{ width: `${point.rate ?? 0}%` }} /></div>
+                  <p className="mt-2 text-xs text-teal-300">★ {point.stars}/{point.possibleStars} stars · {(point.stars / point.elapsedDays).toFixed(2)}/5 average over {point.elapsedDays} elapsed days</p>
                 </div>
               ))}
             </div>

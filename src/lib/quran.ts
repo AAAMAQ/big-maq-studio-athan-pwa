@@ -14,8 +14,25 @@ interface SurahApiPayload {
 export const QURAN_API = 'https://api.alquran.cloud/v1'
 export const QURAN_OFFLINE_CACHE = 'athan-quran-offline-v2'
 
+// Only concurrent reads are retained; completed data remains in the existing disk caches.
+// A cap avoids unbounded bookkeeping when many distinct requests remain pending.
+const MAX_PENDING_READS = 16
+const pendingReads = new Map<string, Promise<unknown>>()
+
+function getJSON<T>(url: string): Promise<T> {
+  const existing = pendingReads.get(url)
+  if (existing) return existing as Promise<T>
+  const read = readJSON<T>(url)
+  if (pendingReads.size >= MAX_PENDING_READS) return read
+  const tracked = read.finally(() => {
+    if (pendingReads.get(url) === tracked) pendingReads.delete(url)
+  })
+  pendingReads.set(url, tracked)
+  return tracked
+}
+
 // Prefer a fresh response, then fall back to the Quran-only Cache Storage.
-async function getJSON<T>(url: string): Promise<T> {
+async function readJSON<T>(url: string): Promise<T> {
   try {
     const res = await fetch(url)
     if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`)
@@ -46,8 +63,10 @@ function setCache<T>(k: string, v: T) {
   }
 }
 function getCache<T>(k: string, maxAge = 1000*60*60*24*30): T | null {
-  const raw = localStorage.getItem(k); if (!raw) return null
-  try { const p = JSON.parse(raw); if (Date.now()-p.t>maxAge) return null; return p.v as T } catch { return null }
+  try {
+    const raw = localStorage.getItem(k); if (!raw) return null
+    const p = JSON.parse(raw); if (Date.now()-p.t>maxAge) return null; return p.v as T
+  } catch { return null }
 }
 
 export async function fetchSurahs(): Promise<Surah[]> {

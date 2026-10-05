@@ -4,6 +4,8 @@
 
 ## Purpose
 
+Next release planning (2026-10-05): [v4.0.0 — Your App, Your Flow](./V4_0_0_UPDATE_PLAN.md) consolidates the newly agreed layout, internal-loading, Settings, and Salah search/star additions. The delivered feature-wave record below remains historical; the new plan is not an implementation or release.
+
 Plan the next focused feature wave for Athan PWA while preserving its current visual style, prayer calculations, privacy boundaries, saved data, and existing screens. The wave improves clarity when viewing a saved city's prayer times, adds a second optional calendar alert to Deep Search Athan and Settings, makes Settings exports follow the selected primary prayer source with Deep Search-style event detail, and separates Salah Tracker logging from its deeper search and insight tools.
 
 ## Existing behavior to preserve
@@ -225,6 +227,8 @@ After the agents finish, the primary agent checks cross-feature behavior: Settin
 - [ ] Existing visual language and responsive behavior are retained.
 
 ## Research references
+
+Future planning notes for stars, notes-presence searches, logging coverage, component ranges, weekdays, and saved searches are in [Salah Stars and Search Extensions](./SALAH_STARS_AND_SEARCH_EXTENSIONS_PLAN.md). Those notes were recorded on 2026-10-05 and are planning only; they do not change the delivered scope described above.
 
 - Pokémon GO's official search documentation is a reference for combining terms, exclusions, and suggestions: [Searching & Filtering your Pokémon Inventory](https://niantic.helpshift.com/hc/en/6-pokemon-go/faq/1486-searching-filtering-your-pokemon-inventory/).
 - JavaScript timezone-aware display can use `Intl.DateTimeFormat` with an IANA timezone: [MDN `Intl.DateTimeFormat`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/DateTimeFormat).

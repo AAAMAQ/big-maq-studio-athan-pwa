@@ -31,6 +31,9 @@ export type SalahTrendPoint = {
   completed: number
   logged: number
   rate: number | null
+  stars: number
+  possibleStars: number
+  elapsedDays: number
 }
 
 export type SalahPeriodInsights = {
@@ -41,6 +44,7 @@ export type SalahPeriodInsights = {
   end: Date
   dayCount: number
   daysWithLogs: number
+  stars: { total: number; possible: number; averagePerDay: number | null; elapsedDays: number }
   prayers: Record<SalahPrayerKey, SalahPrayerStats>
   mostConsistent: {
     prayer: SalahPrayerKey
@@ -99,6 +103,18 @@ export function getSalahStatus(log: SalahDayLog | undefined, prayer: SalahPrayer
   return 'not-logged'
 }
 
+/** Stars have a fixed capacity of five, unlike completed/logged rates. */
+export function summarizeSalahDay(log: SalahDayLog | undefined) {
+  let completed = 0
+  let missed = 0
+  for (const prayer of SALAH_PRAYERS) {
+    if (log?.[prayer] === true) completed += 1
+    else if (log?.[prayer] === false) missed += 1
+  }
+  const logged = completed + missed
+  return { completed, missed, logged, notLogged: 5 - logged, stars: completed, possibleStars: 5 }
+}
+
 export function calculateSalahPeriodInsights(
   inputStore: SalahLogStore,
   period: SalahPeriodKey,
@@ -123,6 +139,8 @@ export function calculateSalahRangeInsights(
 
   const previousDays = eachDay(addDays(start, -dayCount), addDays(start, -1))
   const trendInterval: 'week' | 'month' = dayCount > 90 ? 'month' : 'week'
+  const totalStars = SALAH_PRAYERS.reduce((total, prayer) => total + prayers[prayer].completed, 0)
+  const starDayCount = selection.kind === 'preset' && selection.period === 'all' && daysWithLogs === 0 ? 0 : dayCount
 
   return {
     period,
@@ -132,13 +150,14 @@ export function calculateSalahRangeInsights(
     end,
     dayCount,
     daysWithLogs,
+    stars: { total: totalStars, possible: starDayCount * 5, averagePerDay: starDayCount ? totalStars / starDayCount : null, elapsedDays: starDayCount },
     prayers,
     mostConsistent: findMostConsistent(prayers, dayCount),
     mostImproved: findMostImproved(store, prayers, previousDays),
     allFive: countCompleteDays(store, days),
     strongestWeekday: findStrongestWeekday(store, days),
     trendInterval,
-    trend: buildTrend(store, days, trendInterval)
+    trend: starDayCount === 0 ? [] : buildTrend(store, days, trendInterval)
   }
 }
 
@@ -269,11 +288,12 @@ function findStrongestWeekday(store: SalahLogStore, days: Date[]) {
 }
 
 function buildTrend(store: SalahLogStore, days: Date[], interval: 'week' | 'month'): SalahTrendPoint[] {
-  const buckets = new Map<string, { start: Date; completed: number; logged: number }>()
+  const buckets = new Map<string, { start: Date; completed: number; logged: number; elapsedDays: number }>()
   for (const day of days) {
     const bucketStart = interval === 'month' ? startOfMonth(day) : startOfWeek(day)
     const key = ymd(bucketStart)
-    const bucket = buckets.get(key) ?? { start: bucketStart, completed: 0, logged: 0 }
+    const bucket = buckets.get(key) ?? { start: bucketStart, completed: 0, logged: 0, elapsedDays: 0 }
+    bucket.elapsedDays += 1
     const log = store[ymd(day)]
     for (const prayer of SALAH_PRAYERS) {
       if (typeof log?.[prayer] !== 'boolean') continue
@@ -290,6 +310,9 @@ function buildTrend(store: SalahLogStore, days: Date[], interval: 'week' | 'mont
       : `Week of ${bucket.start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
     completed: bucket.completed,
     logged: bucket.logged,
+    stars: bucket.completed,
+    possibleStars: bucket.elapsedDays * 5,
+    elapsedDays: bucket.elapsedDays,
     rate: percentage(bucket.completed, bucket.logged)
   }))
 }

@@ -18,7 +18,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,json,ico,png,svg}'],
         runtimeCaching: [
           // pages & assets
           {

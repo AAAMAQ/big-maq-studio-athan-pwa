@@ -108,9 +108,11 @@ export default function Quran({ go }: Props) {
   const [pendingAyah, setPendingAyah] = useState<number | null>(null)
 
   useEffect(() => {
+    let active = true
     fetchSurahs()
-      .then(setSurahs)
-      .catch(() => setLoadError('Could not load the Surah list. Connect once and try again.'))
+      .then((result) => { if (active) setSurahs(result) })
+      .catch(() => { if (active) setLoadError('Could not load the Surah list. Connect once and try again.') })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
@@ -141,12 +143,14 @@ export default function Quran({ go }: Props) {
 
   useEffect(() => {
     if (!surahs.length) return
+    let active = true
     const dateKey = new Date().toLocaleDateString('en-CA')
     const seed = [...dateKey].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 17)
     const surah = surahs[seed % surahs.length]
     const ayah = ((seed >>> 8) % surah.numberOfAyahs) + 1
     fetchSurah(surah.number, edition)
       .then((result) => {
+        if (!active) return
         setDailyAyah({
           surah,
           ayah,
@@ -154,7 +158,8 @@ export default function Quran({ go }: Props) {
           english: result.english.find((item) => item.number === ayah)?.text ?? ''
         })
       })
-      .catch(() => setDailyAyah(null))
+      .catch(() => { if (active) setDailyAyah(null) })
+    return () => { active = false }
   }, [edition, surahs])
 
   useEffect(() => {

@@ -17,6 +17,7 @@ describe('shared defaults', () => {
     localStorage.setItem('reminderOffsetMin', '15')
     localStorage.setItem('ishaFixedTime', '21:45')
     localStorage.setItem('salahLogV1', '{"private":"worship data"}')
+    for (const key of ['athan.layout.v1', 'athan.performance.v1', 'athan.settings.sections.v1', 'salahSavedSearchesV1', 'salahRecentSearchesV1']) localStorage.setItem(key, 'PRIVATE_V4_SENTINEL')
     localStorage.setItem('athan.salah.reminder.v1', '{"enabled":true,"time":"20:30"}')
     localStorage.setItem('athan.calendar.fixedIsha.enabled.v1', 'false')
     localStorage.setItem('athan.calendar.secondReminder.v1', '{"enabled":true,"minutesBefore":15}')
@@ -38,6 +39,8 @@ describe('shared defaults', () => {
       reminders: { offsetMinutes: 15, fixedIshaTime: '21:45' }
     })
     expect(url).not.toContain('private')
+    expect(JSON.stringify(parsed)).not.toContain('PRIVATE_V4_SENTINEL')
+    expect(JSON.stringify(parsed)).not.toMatch(/layout|priorities|queries|searches|sections/)
     expect(url).not.toContain('latitude')
     expect(JSON.stringify(parsed)).not.toContain('20:30')
     expect(JSON.stringify(parsed)).not.toContain('09:30')
