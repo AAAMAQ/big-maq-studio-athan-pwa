@@ -6,18 +6,19 @@ import { formatPrimaryPrayerTime, getPrimaryPrayerContext, loadPrimarySavedCity,
 import PrayerMonth from './PrayerMonth.tsx'
 import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
 import { dateKeyAnchor, sourceWeekday } from '../lib/sourceTime'
+import type { NavigationIntent } from '../types/nav'
 
 type PrayerKey = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha'
 type PrayerTimesState = Partial<Record<PrayerKey, Date>>
 
 const PRAYER_ORDER: PrayerKey[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha']
 
-export default function PrayerTimes() {
+export default function PrayerTimes({ navigationIntent }: { navigationIntent?: NavigationIntent } = {}) {
   const [times, setTimes] = useState<PrayerTimesState>({})
   const [next, setNext] = useState<{ name: string; time: Date } | null>(null)
   const [language] = useState<AppLanguage>(() => loadLanguage())
   const [countdown, setCountdown] = useState('00:00:00')
-  const [showMonth, setShowMonth] = useState(false)
+  const [showMonth, setShowMonth] = useState(() => navigationIntent?.screen === 'PrayerMonth' || (navigationIntent?.screen === 'Prayer' && 'view' in navigationIntent && navigationIntent.view === 'month'))
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [locationLabel, setLocationLabel] = useState('Current device location')
@@ -26,6 +27,11 @@ export default function PrayerTimes() {
   const [context, setContext] = useState<PrimaryPrayerContext | null>(null)
   const [timeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
   const isFriday = context ? sourceWeekday(context.dateKey) === 5 : new Date().getDay() === 5
+
+  useEffect(() => {
+    if (navigationIntent?.screen === 'PrayerMonth' || (navigationIntent?.screen === 'Prayer' && 'view' in navigationIntent && navigationIntent.view === 'month')) setShowMonth(true)
+    else if (navigationIntent?.screen === 'Prayer') setShowMonth(false)
+  }, [navigationIntent])
 
   const prayerLabels: Record<PrayerKey, string> = {
     fajr: t('fajr', language),

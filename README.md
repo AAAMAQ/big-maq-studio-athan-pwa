@@ -4,14 +4,24 @@ A lightweight, privacy-friendly Islamic utility built with React, TypeScript, Vi
 
 ## Current release
 
-**v4.0.0 — Your App, Your Flow**
+**v4.0.1 — Clearer Navigation & Salah Streaks**
 
-Personalize navigation and shortcuts, choose invisible loading optimizations, and explore Salah progress with fixed-capacity stars and richer local searches. Existing features and private records remain intact.
+Find app destinations through local predictive search, use the compact Home header and navigation-only Feature Hub, and explore verified all-five Salah streaks. Optional Salah Brief and explicitly shared layouts build on v4's personalization while preserving private records.
+
+### Added and changed in v4.0.1
+
+- Home header: Search on the left, Home centered, four-square Feature Hub on the right; larger main date. Settings remains permanently available inside the Hub.
+- Predictive local search includes hidden roots, child screens, monthly timetable and Quran reader destinations, without querying private records or fetching content while typing.
+- All-five streak search: exact `streak:5`, minimum `streak:5+`, and tied longest `streak:max`; period analytics show streak dates and boundary context.
+- Optional Custom Layout Salah Brief reuses this week's tracker graphs below the prayer preview. It is off by default, starts with a daily trend line, and offers a switch to per-prayer bars using only local logs.
+- Teal Salah stars and collapsible progress-search help; existing counts, rates and search grammar remain intact.
+- Share Your Defaults can include validated custom layout only when selected, with separate recipient consent. Backup & Restore includes Salah Brief visibility and chart choice.
+- Need Help is a main feature in Feature Hub, app search and Custom Layout. Its searchable, expandable guide includes detailed phone installation, calculation-method references, Asr/high-latitude explanations, a timetable-conversion prompt, Quran reading/bookmark controls, Qibla guidance, 30 Salah-query examples and safe troubleshooting. Welcoming language and the original personal touches accompany current, corrected instructions; the entire pasted old guide is archived separately.
 
 ### Added and changed in v4.0.0
 
 - Optional Custom Layout: reorder/add/remove navigation, Home, and More shortcuts; preview drafts, save, cancel, and reset.
-- Permanent Home plus up to four additional navigation destinations; protected Settings fallback and Feature Hub access.
+- Permanent Home plus up to four additional navigation destinations; protected Feature Hub access (Settings now remains inside Hub).
 - Optional Performance Mode and priority preparation, without reducing features, changing calculations, animations, or visual design.
 - Universal plus/minus Settings sections; collapse preserves controls and intentional work rather than putting a feature to sleep.
 - Removed the redundant inner “Athan App” Home heading; prayer preview, date, and primary-source context remain.
@@ -68,6 +78,7 @@ The default bottom navigation remains **Home / Prayer / Settings**. Home normall
 | Ramadan Mode | Manual Ramadan/Eid dates, Fajr/Maghrib countdowns, fasting statuses, and notes |
 | App Guide | Existing introduction and practical navigation guidance |
 | Feature Hub | Full root catalog and access to features missing from your shortcuts |
+| Need Help | Detailed searchable current guide, feature-opening actions, offline/storage guidance and safe troubleshooting |
 
 Monthly view belongs to Prayer Times; Quran Settings belongs to Quran; Salah Insights/Search/Graphs belong to Salah Tracker. They are not separate customizable roots. Moving a root shortcut does not remove any of its child controls.
 
@@ -76,15 +87,16 @@ Monthly view belongs to Prayer Times; Quran Settings belongs to Quran; Salah Ins
 Open **Settings → Performance & App Layout → Edit layout & feature priorities**. Custom Layout is **off by default**, independently of Performance Mode.
 
 - Home remains the first navigation destination. Choose zero to four distinct extras, for five buttons maximum.
-- Prayer and Settings can be replaced or reordered. When Settings is absent, a protected button appears at Home’s top right.
+- Prayer and Settings can be replaced or reordered. When Settings is absent, open Home's top-right Feature Hub → Settings; it always remains available there.
 - Add, remove, and reorder optional Home and More shortcuts using accessible move buttons; dragging is not required.
 - The same feature may appear on different surfaces, sharing the same screen and data. A single list does not repeat a destination.
 - Home’s prayer preview, date/source information, and timezone context cannot be removed.
-- Protected Feature Hub access remains on custom Home and More, including when optional lists are empty. Settings also exposes the full catalog.
+- Protected Search and Feature Hub icons remain in Home's header in both normal and custom layouts, including empty shortcut lists. Settings also exposes the full catalog.
+- Optionally enable Salah Brief directly below the prayer preview. Choose **Line graph** (default) or **Prayer bars** in the layout draft, or switch directly inside an enabled Brief. The line plots each elapsed day this week using completed ÷ logged prayers; days without obligatory logs are gaps, not zero-rate misses. Both charts reuse Graph Insights and show logged-data context, with a link to that weekly view. Turning Custom Layout off hides the Brief without forgetting its visibility or chart choice. Saves, backups and explicitly shared layouts retain the chart preference, never duplicate graph data.
 - Preview does not apply a draft. Save applies the layout; Cancel discards unsaved layout edits. Reset prepares the standard layout as a draft until saved.
 - Turning Custom Layout off restores the normal presentation without discarding saved custom lists.
 
-Feature Hub can open a hidden root directly or add it to Home/More. Adding there explicitly enables Custom Layout. No feature or records are deleted by hiding a shortcut.
+Feature Hub opens features only; all editing remains in Settings. Visiting Hub never changes the layout. No feature or records are deleted by hiding a shortcut. Home's Search app also opens child destinations (including the actual monthly timetable) and Quran Surahs from local metadata, with keyboard and touch suggestions.
 
 ### Performance Mode and dormant features
 
@@ -200,6 +212,9 @@ Searches return **days**, not individual prayers. Names are case-insensitive; pr
 | `(mon)` / `(Monday)` | Mondays |
 | `(mon)&((logged5),(notes))` | Mondays that are fully logged or contain notes |
 | `(last30days)&fajr` | Fajr completed today or during the preceding 29 dates |
+| `(streak:5)` | Dates in an exact maximal five-day run with all five prayers completed |
+| `(streak:5+)` | Dates in a maximal all-five run of at least five days |
+| `(streak:max)` | Dates in all tied longest runs intersecting the explicit search scope |
 
 `&` is AND; comma/semicolon are OR. AND binds before OR; parentheses explicitly group conditions. `A&(B,C)` distributes like `(A&B),(A&C)`. Square brackets are reserved for exact completed-prayer sets—not arbitrary attribute groups. `!` can negate notes/counts/weekdays/relative predicates, but prayer `!` retains its explicit-Missed meaning. `~` and `/` apply to prayers.
 
@@ -220,6 +235,8 @@ Range components require their `m`, `d`, or `y` label and may be reordered. Impo
 Default scope is recorded dates through today. An explicit fixed date range can also include blank dates; negative notes or zero-count filters never manufacture an unlimited calendar. Queries and explicit ranges are bounded for lightweight operation (2,048 query characters; approximately ten years per bounded range).
 
 #### Saved/recent searches and result summaries
+
+All-five runs require every obligatory prayer explicitly completed on consecutive tracker-local dates; missed, unlogged and absent days break them. A seven-day run does not match `streak:5`, but matches `streak:5+`. Runs are derived before other query filters; month predicates restrict displayed dates, not verified full length. `streak:max` ranks full lengths of runs intersecting the explicit scope and includes ties. Analytics instead clips runs inside its chosen period and displays date ranges/boundary context. Search help is expandable without resetting queries or results.
 
 Save a valid query with a name, reopen it, rename it, or remove it. Stored definitions rerun against current records—no copied history. Up to 30 named searches and eight recent valid queries are retained; examples/suggestions are local.
 
@@ -265,7 +282,7 @@ Restore validates new known preferences and keeps older backups compatible. Back
 
 Backups contain Quran offline **metadata**, not Cache Storage response files. Restoring metadata on another device does not restore downloaded Arabic/translation text; download it again if needed. Browser data clearing, uninstall behavior, storage limits, and domain changes can affect local records—export a backup first.
 
-**Share Your Defaults is not a personal backup.** It shares the supported calculation/reminder defaults, not Salah logs, daily notes, tracker-review preferences, layout/performance/disclosure preferences, saved/recent queries, Quran progress, or personal profile/location data. City/Masjid/timetable sharing is a separate deliberate action and includes the profile information the user chooses to share.
+**Share Your Defaults is not a personal backup.** It shares supported calculation/reminder defaults. Selecting **Include custom layout** additionally shares only validated shortcut order, layout enablement and Salah Brief visibility; recipients preview it and separately choose **Apply shared layout**. Ordinary version1 links remain supported; layout-aware version2 links require an updated app. Never included: Salah logs, notes, graph values, tracker-review preferences, performance/disclosure preferences, saved/recent queries, Quran progress or personal profile/location data. Opening a link applies nothing automatically. City/Masjid/timetable sharing remains a separate deliberate action with its own profile information.
 
 No accounts, ads, advertising trackers, or tracker-history uploads are added. Personal records stay locally by default. External services can receive requested locations, dates, selected translation/calculation information, and normal network metadata needed to return requested content; “local history” does not mean the app never makes network requests.
 

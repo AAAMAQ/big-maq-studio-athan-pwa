@@ -8,11 +8,12 @@ export const DEFAULT_MORE_SHORTCUTS: RootFeatureId[] = ['AthanEngine', 'SavedCit
 export const SETTINGS_SECTION_IDS = ['preferences', 'source', 'calculation', 'calendar', 'data', 'pwa', 'layout'] as const
 export type SettingsSectionId = typeof SETTINGS_SECTION_IDS[number]
 export type LayoutSurface = 'navigation' | 'home' | 'more'
-export type AppLayoutPreferences = { schemaVersion: 1; enabled: boolean; navigation: RootFeatureId[]; home: RootFeatureId[]; more: RootFeatureId[] }
+export type SalahBriefView = 'line' | 'bars'
+export type AppLayoutPreferences = { schemaVersion: 1; enabled: boolean; navigation: RootFeatureId[]; home: RootFeatureId[]; more: RootFeatureId[]; homeSections?: { salahBrief: boolean; salahBriefView?: SalahBriefView } }
 export type SettingsSections = Partial<Record<SettingsSectionId, boolean>>
 
 export function defaultAppLayout(): AppLayoutPreferences {
-  return { schemaVersion: 1, enabled: false, navigation: ['Prayer', 'Settings'], home: [...DEFAULT_HOME_SHORTCUTS], more: [...DEFAULT_MORE_SHORTCUTS] }
+  return { schemaVersion: 1, enabled: false, navigation: ['Prayer', 'Settings'], home: [...DEFAULT_HOME_SHORTCUTS], more: [...DEFAULT_MORE_SHORTCUTS], homeSections: { salahBrief: false, salahBriefView: 'line' } }
 }
 
 function normalizeList(value: unknown, fallback: RootFeatureId[], surface: LayoutSurface): RootFeatureId[] {
@@ -26,7 +27,7 @@ export function normalizeAppLayout(value: unknown): AppLayoutPreferences {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return defaults
   const raw = value as Partial<AppLayoutPreferences>
   if (raw.schemaVersion !== undefined && raw.schemaVersion !== 1) return defaults
-  return { schemaVersion: 1, enabled: raw.enabled === true, navigation: normalizeList(raw.navigation, defaults.navigation, 'navigation'), home: normalizeList(raw.home, defaults.home, 'home'), more: normalizeList(raw.more, defaults.more, 'more') }
+  return { schemaVersion: 1, enabled: raw.enabled === true, navigation: normalizeList(raw.navigation, defaults.navigation, 'navigation'), home: normalizeList(raw.home, defaults.home, 'home'), more: normalizeList(raw.more, defaults.more, 'more'), homeSections: { salahBrief: raw.homeSections?.salahBrief === true, salahBriefView: raw.homeSections?.salahBriefView === 'bars' ? 'bars' : 'line' } }
 }
 
 export function readPreference(key: string): unknown {

@@ -162,13 +162,13 @@ export default function SalahTracker({ go, initialDate }: { go: (screen: string)
               key={ymd(date)}
               type="button"
               onClick={() => setSelected(date)}
-              className={`aspect-square rounded flex flex-col items-center justify-center ${heatClass(future ? 0 : summary.completed, future ? 0 : summary.logged, inMonth)} ${selectedDay ? 'ring-2 ring-yellow-300' : ''}`}
+              className={`aspect-square rounded flex flex-col items-center justify-center ${heatClass(future ? 0 : summary.completed, future ? 0 : summary.logged, inMonth)} ${selectedDay ? 'ring-2 ring-teal-200' : ''}`}
               aria-label={`${date.toDateString()}: ${summary.completed} completed of ${summary.logged} logged; ${future ? 'future date, stars not applicable' : `${summary.stars} of 5 stars`}`}
               title={`${date.toDateString()} · ${summary.logged === 0 ? 'No data' : `${summary.completed} completed, ${summary.missed} missed, ${summary.notLogged} not logged`}`}
             >
               <span className="text-[10px]">{date.getDate()}</span>
               <span className="text-[10px]">{summary.logged === 0 ? '—' : `${summary.completed}/${summary.logged}`}</span>
-              <span aria-hidden="true" className={`text-[10px] ${future || summary.stars === 0 ? 'text-gray-400' : summary.stars === 5 ? 'text-gray-950' : 'text-yellow-200'}`}>★ {future ? '—' : `${summary.stars}/5`}</span>
+              <span aria-hidden="true" className={`text-[10px] ${future || summary.stars === 0 ? 'text-gray-400' : summary.stars >= 4 ? 'text-gray-950' : 'text-teal-100'}`}>★ {future ? '—' : `${summary.stars}/5`}</span>
             </button>
           )
         })}

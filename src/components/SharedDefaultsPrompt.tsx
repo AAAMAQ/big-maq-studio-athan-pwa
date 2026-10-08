@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { loadLanguage } from '../lib/i18n'
+import { rootFeatureLabel } from '../lib/rootFeatures'
 import {
   applySharedDefaults,
   clearSharedDefaultsHash,
@@ -12,6 +14,15 @@ type Props = {
 
 export default function SharedDefaultsPrompt({ defaults, onClose }: Props) {
   const [error, setError] = useState('')
+  const [applyLayout, setApplyLayout] = useState(false)
+  const language = loadLanguage()
+  const dialogRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    dialogRef.current?.focus()
+    return () => { if (previousFocus?.isConnected) previousFocus.focus() }
+  }, [])
 
   function dismiss() {
     clearSharedDefaultsHash()
@@ -20,7 +31,7 @@ export default function SharedDefaultsPrompt({ defaults, onClose }: Props) {
 
   function apply() {
     try {
-      applySharedDefaults(defaults)
+      applySharedDefaults(defaults, { applyLayout })
       clearSharedDefaultsHash()
       window.location.reload()
     } catch (caught) {
@@ -31,10 +42,21 @@ export default function SharedDefaultsPrompt({ defaults, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center" role="presentation">
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="shared-defaults-title"
-        className="w-full max-w-lg space-y-4 rounded-xl border border-teal-800 bg-gray-900 p-5 shadow-2xl"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') { event.preventDefault(); dismiss(); return }
+          if (event.key !== 'Tab') return
+          const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), a[href]')
+          const first = controls?.[0], last = controls?.[controls.length - 1]
+          if (!first || !last) { event.preventDefault(); return }
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) { event.preventDefault(); last.focus() }
+          else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) { event.preventDefault(); first.focus() }
+        }}
+        className="max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-xl border border-teal-800 bg-gray-900 p-5 shadow-2xl"
       >
         <div>
           <p className="text-xs font-semibold uppercase text-teal-400">Private by design</p>
@@ -56,8 +78,28 @@ export default function SharedDefaultsPrompt({ defaults, onClose }: Props) {
           <DefaultRow label="Fixed Isha" value={defaults.reminders.fixedIshaTime} />
         </dl>
 
+        {defaults.layout && (
+          <section aria-label="Shared layout preview" className="space-y-3 rounded-lg border border-teal-900 bg-gray-950 p-4 text-sm">
+            <h3 className="font-semibold text-teal-200">Custom layout preview</h3>
+            <p>Custom Layout: {defaults.layout.enabled ? 'Enabled' : 'Disabled (saved arrangement retained)'}</p>
+            <dl className="space-y-2">
+              <DefaultRow label="Navigation" value={[rootFeatureLabel('Home', language), ...defaults.layout.navigation.map((id) => rootFeatureLabel(id, language))].join(' → ')} />
+              <DefaultRow label="Home shortcuts" value={defaults.layout.home.map((id) => rootFeatureLabel(id, language)).join(' → ') || 'None'} />
+              <DefaultRow label="More shortcuts" value={defaults.layout.more.map((id) => rootFeatureLabel(id, language)).join(' → ') || 'None'} />
+              <DefaultRow label="Salah Brief" value={defaults.layout.homeSections?.salahBrief ? `Shown when Custom Layout is enabled — ${defaults.layout.homeSections.salahBriefView === 'bars' ? 'Prayer bars' : 'Line graph'} using your own records` : 'Hidden'} />
+            </dl>
+            <p className="text-xs text-gray-400">Home and Feature Hub access stay protected. Settings is always available in Feature Hub.</p>
+            <label className="flex min-h-11 items-center gap-3 font-semibold text-teal-200">
+              <input type="checkbox" checked={applyLayout} onChange={(event) => setApplyLayout(event.target.checked)} className="h-5 w-5 accent-teal-500" />
+              Apply shared layout
+            </label>
+            <p className="text-xs text-gray-400">Unchecked: apply ordinary defaults only and keep your existing layout.</p>
+          </section>
+        )}
+        {defaults.layoutWarnings?.map((warning) => <p key={warning} role="status" className="text-sm text-amber-200">{warning}</p>)}
+
         <p className="rounded-lg border border-emerald-900 bg-emerald-950/40 p-3 text-xs leading-5 text-emerald-200">
-          Salah and Ramadan trackers, Quran progress and bookmarks, locations, saved cities, mosque profiles, and other personal data are never included.
+          Salah history, notes, saved searches, tracker reminder preferences, Performance Mode/priorities, Settings expansion, Quran activity, locations, and profiles are never included. A selected layout shares only button order and Salah Brief visibility—not graph values.
         </p>
 
         {error && <p role="alert" className="text-sm text-amber-200">{error}</p>}

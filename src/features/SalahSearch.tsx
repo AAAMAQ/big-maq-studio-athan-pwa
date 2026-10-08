@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getSalahStatus, parseSalahDate, SALAH_PRAYERS } from '../lib/salahInsights'
+import { deriveSalahStreakRuns, indexSalahStreakRuns, getSalahStatus, parseSalahDate, SALAH_PRAYERS } from '../lib/salahInsights'
 import { explainSalahSearch, parseSalahSearch, searchSalahDays, summarizeSalahSearchResults } from '../lib/salahSearch'
 import { SALAH_DATA_CHANGE_EVENT } from '../lib/salahStore'
 import { useSalahData } from '../lib/useSalahData'
@@ -20,12 +20,16 @@ const EXAMPLES = [
   { query: '(notes)&!fajr', meaning: 'A note and Fajr missed' },
   { query: '(mon)&((logged5),(notes))', meaning: 'Mondays fully logged or with notes' },
   { query: '((2-5)m.(21-30)d.(25-26)y)', meaning: 'Feb–May, days 21–30, 2025–2026' },
-  { query: '(last30days)&fajr', meaning: 'Fajr completed in the last 30 days' }
+  { query: '(last30days)&fajr', meaning: 'Fajr completed in the last 30 days' },
+  { query: 'streak:5', meaning: 'Exactly five consecutive all-five days' },
+  { query: 'streak:5+', meaning: 'Five or more consecutive all-five days' },
+  { query: '(streak:max)&(notes)', meaning: 'Notes within the longest run(s)' }
 ]
 
 export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) => void }) {
   const { store, todayKey } = useSalahData()
   const [query, setQuery] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
   const [includeBlankDates, setIncludeBlankDates] = useState(false)
   const [useDateRange, setUseDateRange] = useState(false)
   const [saved, setSaved] = useState(loadSavedSalahSearches)
@@ -35,16 +39,18 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
   const [message, setMessage] = useState('')
   const [visibleCount, setVisibleCount] = useState(60)
   const [range, setRange] = useState({ from: `${todayKey.slice(0, 7)}-01`, to: todayKey })
+  const runs = useMemo(() => deriveSalahStreakRuns(store, parseSalahDate(todayKey)!), [store, todayKey])
   const outcome = useMemo(() => {
     if (!query.trim()) return { dates: [] as string[], meaning: '', error: '' }
     try {
       if (useDateRange && range.to > todayKey) throw new Error('Choose a fixed date range ending no later than today.')
       const node = parseSalahSearch(query)
-      return { dates: searchSalahDays(store, node, useDateRange ? { ...range, includeBlankDates } : undefined, parseSalahDate(todayKey)!), meaning: explainSalahSearch(node), error: '' }
+      return { dates: searchSalahDays(store, node, useDateRange ? { ...range, includeBlankDates } : undefined, parseSalahDate(todayKey)!, runs), meaning: explainSalahSearch(node), error: '' }
     }
     catch (error) { return { dates: [] as string[], meaning: '', error: error instanceof Error ? error.message : 'Check the search string.' } }
-  }, [store, query, includeBlankDates, range, useDateRange, todayKey])
+  }, [store, query, includeBlankDates, range, useDateRange, todayKey, runs])
   const summary = useMemo(() => summarizeSalahSearchResults(store, outcome.dates), [store, outcome.dates])
+  const runByDate = useMemo(() => indexSalahStreakRuns(runs), [runs])
   const scope: SalahSearchScope = useDateRange ? { kind: 'absolute', ...range, includeBlankDates } : { kind: 'recorded' }
   useEffect(() => {
     const refresh = () => { setSaved(loadSavedSalahSearches()); setRecent(loadRecentSalahSearches()) }
@@ -86,14 +92,19 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
       <header><h1 className="text-2xl font-bold">Search Salah Progress</h1><p className="mt-1 text-sm text-gray-400">Find days by date and the five obligatory prayers you logged.</p></header>
       <section className="rounded-lg bg-gray-800 p-4 space-y-3">
         <label className="block text-sm font-semibold">Search days
-          <input type="search" value={query} maxLength={2048} onChange={(event) => { setQuery(event.target.value); setVisibleCount(60) }} onKeyDown={(event) => { if (event.key === 'Enter' && query.trim() && !outcome.error) remember(query) }} placeholder="Try Oct.30, 6m.26y, or fajr&dhuhr" autoComplete="off" spellCheck={false} aria-describedby="search-help search-date-help" className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:border-teal-500 focus:outline-none" />
+          <input type="search" value={query} maxLength={2048} onChange={(event) => { setQuery(event.target.value); setVisibleCount(60) }} onKeyDown={(event) => { if (event.key === 'Enter' && query.trim() && !outcome.error) remember(query) }} placeholder="Try Oct.30, 6m.26y, or fajr&dhuhr" autoComplete="off" spellCheck={false} aria-describedby="search-hint" className="mt-1 w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-gray-100 placeholder:text-gray-500 focus:border-teal-500 focus:outline-none" />
         </label>
+        <p id="search-hint" className="text-xs text-gray-400">Try fajr, Oct.30, or streak:5+. Names mean completed, ! missed, ~ not logged. Expand help for operators and examples.</p>
+        <button type="button" aria-expanded={helpOpen} aria-controls="salah-search-help" onClick={() => setHelpOpen((open) => !open)} className="min-h-11 rounded border border-gray-700 px-3 py-2 text-sm text-teal-300 focus:outline focus:outline-2 focus:outline-teal-400">{helpOpen ? '−' : '+'} Help with search strings</button>
+        {helpOpen ? <div id="salah-search-help" className="space-y-3">
         <p id="search-help" className="text-xs leading-5 text-gray-400">1 Fajr · 2 Dhuhr · 3 Asr · 4 Maghrib · 5 Isha. A name or number means completed; ! means missed; ~ means not logged; / means missed or not logged. Use &amp; for both, comma or semicolon for either, parentheses to group, and [ ] for only the listed prayers completed.</p>
         <p id="search-date-help" className="text-xs leading-5 text-gray-400">Dates use dots in any order: 2026y.6m.23d. June, Jun, and 6m are equivalent; 26y means 2026 (2000–2099 for two-digit years). Label two parts to infer the third: 10m.23d.26 or 10.23d.2026y. Oct.23 always means October 23. Partial dates such as 5m or 5m.26y also work. Group the date before combining prayers: (23d.06m.2026y)&amp;fajr.</p>
         <p className="text-xs leading-5 text-gray-400">star3 (or stars3/done3) means three completed out of five; star(3-5) or done3-5 means three to five. logged5 means all five completed or missed; !logged5 means fewer than five logged. notes/note means a nonempty note; !notes means none. mon/Monday finds Mondays. last30days includes today and the previous 29 days. Component ranges, such as ((2-5)m.(21-30)d.(25-26)y), filter those months, days and years—not a continuous interval.</p>
         <div className="flex flex-wrap gap-2" aria-label="Search examples">
           {EXAMPLES.map((example) => <button key={example.query} type="button" onClick={() => chooseQuery(example.query)} className="max-w-full break-words rounded border border-gray-700 bg-gray-900 px-2 py-1 text-left text-xs text-teal-300 hover:border-teal-500"><span className="block font-semibold">{example.query}</span><span className="block text-gray-400">{example.meaning}</span></button>)}
         </div>
+        <p className="text-xs leading-5 text-gray-400">streak:5 matches full runs of exactly five all-five completed days; streak:5+ means at least five. streak:max includes tied longest full runs intersecting your fixed scope, before notes, weekday or date-query filters. Query date terms restrict displayed days but never shorten a verified run. For the longest intersecting October, select October as the fixed range. Future or missing/unlogged days cannot create a streak.</p>
+        </div> : null}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={useDateRange} onChange={(event) => { setUseDateRange(event.target.checked); setVisibleCount(60) }} className="h-4 w-4 accent-teal-600" />Restrict search to a fixed date range</label>
         {useDateRange ? (
           <>
@@ -136,9 +147,11 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
           {outcome.dates.slice(0, visibleCount).map((date) => {
             const log = store[date]
             const parsed = parseSalahDate(date)
+            const run = runByDate.get(date)
             return (
               <article key={date} className="rounded-lg bg-gray-800 p-4">
                 <button type="button" onClick={() => onOpenDay(date)} className="font-semibold text-teal-300 underline-offset-2 hover:underline focus:underline">{parsed?.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) ?? date} → Open day</button>
+                {run ? <p className="mt-2 text-xs text-teal-300">All-five streak: {run.length} day{run.length === 1 ? '' : 's'} · {run.start}–{run.end} (full run)</p> : null}
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-5">
                   {SALAH_PRAYERS.map((prayer) => {
                     const status = getSalahStatus(log, prayer)

@@ -1,4 +1,4 @@
-import { formatSalahDate, getSalahStatus, normalizeSalahLogStore, parseSalahDate, SALAH_PRAYERS, summarizeSalahDay, type SalahDayLog, type SalahLogStore, type SalahPrayerKey } from './salahInsights'
+import { deriveSalahStreakRuns, indexSalahStreakRuns, formatSalahDate, getSalahStatus, normalizeSalahLogStore, parseSalahDate, SALAH_PRAYERS, summarizeSalahDay, type SalahDayLog, type SalahLogStore, type SalahPrayerKey, type SalahStreakRun } from './salahInsights'
 
 type DateValue = number | [number, number]
 export type SearchNode =
@@ -8,6 +8,7 @@ export type SearchNode =
   | { kind: 'notes' }
   | { kind: 'weekday'; value: number }
   | { kind: 'relative'; days: number }
+  | { kind: 'streak'; value: number | 'max'; minimum: boolean }
   | { kind: 'not'; node: SearchNode }
   | { kind: 'and'; nodes: SearchNode[] }
   | { kind: 'or'; nodes: SearchNode[] }
@@ -161,6 +162,15 @@ export function parseSalahSearch(query: string): SearchNode {
       return fail('Use !, ~ or / with prayers; ! can also negate notes, counts, weekdays or relative dates')
     }
     const first = dateToken()
+    if (first === 'streak') {
+      if (!consume(':')) return fail('Use streak:5, streak:5+, or streak:max')
+      const value = token()
+      const minimum = consume('+')
+      if (value === 'max' && !minimum) return { kind: 'streak', value: 'max', minimum: false }
+      const number = Number(value)
+      if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number <= 0) return fail('Use a positive whole-day streak length, or streak:max')
+      return { kind: 'streak', value: number, minimum }
+    }
     const count = /^(star|stars|logged|done)(\d*)$/.exec(first)
     if (count) {
       let min: number
@@ -206,10 +216,16 @@ export function parseSalahSearch(query: string): SearchNode {
   return result
 }
 
-export function matchesSalahSearch(node: SearchNode, log: SalahDayLog | undefined, date?: string, today = new Date()): boolean {
-  if (node.kind === 'and') return node.nodes.every((part) => matchesSalahSearch(part, log, date, today))
-  if (node.kind === 'or') return node.nodes.some((part) => matchesSalahSearch(part, log, date, today))
-  if (node.kind === 'not') return !matchesSalahSearch(node.node, log, date, today)
+export type SalahStreakSearchContext = { byDate: Map<string, SalahStreakRun>; longestLength: number }
+export function matchesSalahSearch(node: SearchNode, log: SalahDayLog | undefined, date?: string, today = new Date(), streaks?: SalahStreakSearchContext): boolean {
+  if (node.kind === 'and') return node.nodes.every((part) => matchesSalahSearch(part, log, date, today, streaks))
+  if (node.kind === 'or') return node.nodes.some((part) => matchesSalahSearch(part, log, date, today, streaks))
+  if (node.kind === 'not') return !matchesSalahSearch(node.node, log, date, today, streaks)
+  if (node.kind === 'streak') {
+    const run = date ? streaks?.byDate.get(date) : undefined
+    if (!run) return false
+    return node.value === 'max' ? run.length === streaks?.longestLength : node.minimum ? run.length >= node.value : run.length === node.value
+  }
   if (node.kind === 'notes') return Boolean(log?.Notes?.trim())
   if (node.kind === 'count') { const counts = summarizeSalahDay(log); return counts[node.field] >= node.min && counts[node.field] <= node.max }
   if (node.kind === 'weekday') return (date ? parseSalahDate(date)?.getDay() : undefined) === node.value
@@ -241,6 +257,7 @@ export function explainSalahSearch(query: string | SearchNode): string {
     if (node.kind === 'not') return `not (${describe(node.node)})`
     if (node.kind === 'weekday') return `${WEEKDAY_NAMES[node.value]} dates`
     if (node.kind === 'relative') return 'dates in the last 30 days, including today'
+    if (node.kind === 'streak') return node.value === 'max' ? 'days in the longest all-five completed run(s) intersecting the selected scope, before other query filters' : `days in a full all-five completed run of ${node.minimum ? 'at least' : 'exactly'} ${node.value} days`
     if (node.kind === 'count') return `${node.min === node.max ? `exactly ${node.min}` : `${node.min}–${node.max}`} ${node.field === 'stars' ? 'stars out of 5 (completed prayers)' : 'prayers logged as completed or missed'}`
     if (node.kind === 'date') {
       if ([node.month, node.year, node.day].some(Array.isArray)) {
@@ -261,7 +278,8 @@ export function searchSalahDays(
   storeInput: SalahLogStore,
   query: string | SearchNode,
   range?: { from: string; to: string; includeBlankDates?: boolean },
-  today = new Date()
+  today = new Date(),
+  verifiedRuns?: SalahStreakRun[]
 ): string[] {
   const node = typeof query === 'string' ? parseSalahSearch(query) : query
   const store = normalizeSalahLogStore(storeInput)
@@ -289,7 +307,17 @@ export function searchSalahDays(
   } else {
     dates = Object.keys(store).filter((date) => date <= todayKey)
   }
-  return dates.filter((date) => matchesSalahSearch(node, store[date], date, today)).sort().reverse()
+  const hasStreak = (part: SearchNode): boolean => part.kind === 'streak' || (part.kind === 'and' || part.kind === 'or') && part.nodes.some(hasStreak) || part.kind === 'not' && hasStreak(part.node)
+  const runs = hasStreak(node) ? verifiedRuns ?? deriveSalahStreakRuns(store, today) : []
+  let longestLength = 0
+  const from = range ? formatSalahDate(parseSalahDate(range.from)!) : undefined
+  const toKey = range ? formatSalahDate(parseSalahDate(range.to)!) : undefined
+  const to = toKey && toKey > todayKey ? todayKey : toKey
+  for (const run of runs) {
+    if ((!from || run.end >= from) && (!to || run.start <= to)) longestLength = Math.max(longestLength, run.length)
+  }
+  const streaks = { byDate: indexSalahStreakRuns(runs), longestLength }
+  return dates.filter((date) => matchesSalahSearch(node, store[date], date, today, streaks)).sort().reverse()
 }
 
 export function summarizeSalahSearchResults(store: SalahLogStore, dates: string[]) {

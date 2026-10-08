@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Home from './Home'
 import { defaultAppLayout, saveAppLayout } from '../lib/appLayout'
 
-const mocks = vi.hoisted(() => ({ context: vi.fn(), dateKey: vi.fn(), hijri: vi.fn() }))
+const mocks = vi.hoisted(() => ({ context: vi.fn(), dateKey: vi.fn(), hijri: vi.fn(), briefFails: false }))
+vi.mock('./SalahBrief', () => ({ default: () => {
+  if (mocks.briefFails) throw new Error('Fixture brief failure')
+  return <section data-testid="salah-brief">Weekly graph fixture</section>
+} }))
 vi.mock('../lib/primaryPrayerSource', () => ({
   getPrimaryPrayerContext: mocks.context,
   loadPrimarySavedCity: () => null,
@@ -17,6 +21,7 @@ vi.mock('../lib/ramadan', () => ({ loadRamadanSettings: () => ({}), getRamadanSt
 beforeEach(() => {
   localStorage.clear()
   vi.resetAllMocks()
+  mocks.briefFails = false
   mocks.context.mockRejectedValue(new Error('No location in fixture'))
   mocks.dateKey.mockReturnValue('2026-10-05')
   mocks.hijri.mockReturnValue('Date fixture')
@@ -31,18 +36,57 @@ describe('Home layout protection', () => {
     expect(screen.queryByText('Athan App')).not.toBeInTheDocument()
   })
 
-  it('keeps Settings/Hub reachable with no shortcuts and refreshes a saved arrangement', async () => {
+  it('has no automatic Settings/Hub content row and refreshes a saved arrangement', async () => {
     saveAppLayout({ ...defaultAppLayout(), enabled: true, navigation: [], home: [], more: [] })
     const go = vi.fn()
     await act(async () => { render(<Home go={go} />) })
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-    expect(go).toHaveBeenCalledWith('Settings')
-    expect(screen.getByRole('button', { name: 'Feature Hub' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Feature Hub' })).not.toBeInTheDocument()
     expect(screen.getByText('Current Prayer')).toBeInTheDocument()
     act(() => { saveAppLayout({ ...defaultAppLayout(), enabled: true, navigation: ['Settings'], home: ['Iqama'] }) })
     expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Iqama Times' }))
     expect(go).toHaveBeenCalledWith('Iqama')
+  })
+
+  it('keeps explicitly saved Settings/Hub shortcuts rather than rewriting them', async () => {
+    saveAppLayout({ ...defaultAppLayout(), enabled: true, navigation: [], home: ['Settings', 'FeatureHub'] })
+    const go = vi.fn()
+    await act(async () => { render(<Home go={go} />) })
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(go).toHaveBeenCalledWith('Settings')
+    fireEvent.click(screen.getByRole('button', { name: 'Feature Hub' }))
+    expect(go).toHaveBeenCalledWith('FeatureHub')
+    expect(screen.getByText('Date fixture')).toHaveClass('text-xl', 'font-bold')
+  })
+
+  it('mounts an enabled Salah Brief immediately below the prayer card, and hides without losing its saved choice', async () => {
+    const layout = { ...defaultAppLayout(), enabled: true, homeSections: { salahBrief: true } }
+    saveAppLayout(layout)
+    await act(async () => { render(<Home go={vi.fn()} />) })
+    const prayer = screen.getByRole('region', { name: 'Current Prayer' })
+    const brief = await screen.findByTestId('salah-brief')
+    expect(prayer.nextElementSibling).toBe(brief)
+    act(() => { saveAppLayout({ ...layout, enabled: false }) })
+    expect(screen.queryByTestId('salah-brief')).not.toBeInTheDocument()
+    act(() => { saveAppLayout(layout) })
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByTestId('salah-brief')).toBeInTheDocument()
+  })
+
+  it('isolates an optional Brief failure from the prayer card and retries with a fresh lazy wrapper', async () => {
+    saveAppLayout({ ...defaultAppLayout(), enabled: true, homeSections: { salahBrief: true } })
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocks.briefFails = true
+    await act(async () => { render(<Home go={vi.fn()} />) })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Salah Brief couldn’t open')
+    expect(screen.getByRole('region', { name: 'Current Prayer' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Quran' })).toBeInTheDocument()
+    mocks.briefFails = false
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Salah Brief' }))
+    expect(await screen.findByTestId('salah-brief')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    errors.mockRestore()
   })
 
   it('does not overlap midnight refreshes or update date state after closing', async () => {

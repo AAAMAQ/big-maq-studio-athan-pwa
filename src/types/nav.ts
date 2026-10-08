@@ -31,3 +31,14 @@ export type Screen =
   | 'Onboarding'
   | 'FeatureHub'
   | 'AppLayout'
+  | 'FeatureSearch'
+
+/** Internal destinations remain typed; search cannot dispatch arbitrary actions. */
+export type NavigationIntent =
+  | { screen: Screen }
+  | { screen: 'Prayer'; view: 'month' }
+  | { screen: 'Quran'; view: 'surahs' | 'juz' | 'saved' | 'search' | 'continue' | 'daily' | 'recent' }
+  | { screen: 'Quran'; surah: number }
+  | { screen: 'Quran'; juz: number }
+  | { screen: 'SalahGraphs'; period: 'week' }
+  | { screen: 'NeedHelp'; section: 'qibla' }

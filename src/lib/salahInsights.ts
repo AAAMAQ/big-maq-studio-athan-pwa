@@ -25,6 +25,14 @@ export type SalahPrayerStats = {
   longestStreak: number
 }
 
+export type SalahStreakRun = { start: string; end: string; length: number }
+export type SalahPeriodStreakRun = SalahStreakRun & { continuesBefore: boolean; continuesAfter: boolean }
+export type SalahFullDayStreaks = {
+  current: SalahPeriodStreakRun | null
+  longestLength: number
+  longest: SalahPeriodStreakRun[]
+}
+
 export type SalahTrendPoint = {
   key: string
   label: string
@@ -66,6 +74,7 @@ export type SalahPeriodInsights = {
     completedDays: number
     fullyLoggedDays: number
   }
+  fullDayStreaks: SalahFullDayStreaks
   strongestWeekday: {
     weekday: string
     completed: number
@@ -115,6 +124,49 @@ export function summarizeSalahDay(log: SalahDayLog | undefined) {
   return { completed, missed, logged, notLogged: 5 - logged, stars: completed, possibleStars: 5 }
 }
 
+/** Maximal verified runs from sparse records. Calendar ordinals ignore DST clock changes. */
+export function deriveSalahStreakRuns(inputStore: SalahLogStore, today = new Date()): SalahStreakRun[] {
+  const store = normalizeSalahLogStore(inputStore)
+  const todayKey = ymd(today)
+  const runs: SalahStreakRun[] = []
+  let previousOrdinal: number | null = null
+  for (const date of Object.keys(store).filter((key) => key <= todayKey).sort()) {
+    if (!SALAH_PRAYERS.every((prayer) => store[date][prayer] === true)) { previousOrdinal = null; continue }
+    const ordinal = localDayNumber(parseYmd(date)!)
+    if (previousOrdinal !== null && ordinal === previousOrdinal + 1) {
+      const run = runs[runs.length - 1]
+      run.end = date
+      run.length += 1
+    } else runs.push({ start: date, end: date, length: 1 })
+    previousOrdinal = ordinal
+  }
+  return runs
+}
+
+/** Membership only allocates verified recorded days, never blank years between records. */
+export function indexSalahStreakRuns(runs: SalahStreakRun[]): Map<string, SalahStreakRun> {
+  const index = new Map<string, SalahStreakRun>()
+  for (const run of runs) {
+    const cursor = parseYmd(run.start)!
+    for (let offset = 0; offset < run.length; offset += 1) {
+      index.set(ymd(cursor), run)
+      cursor.setDate(cursor.getDate() + 1)
+    }
+  }
+  return index
+}
+
+export function summarizeSalahStreakPeriod(runs: SalahStreakRun[], from: string, to: string): SalahFullDayStreaks {
+  const segments: SalahPeriodStreakRun[] = runs.filter((run) => run.end >= from && run.start <= to).map((run) => {
+    const start = run.start < from ? from : run.start
+    const end = run.end > to ? to : run.end
+    return { start, end, length: localDayNumber(parseYmd(end)!) - localDayNumber(parseYmd(start)!) + 1, continuesBefore: run.start < from, continuesAfter: run.end > to }
+  })
+  let longestLength = 0
+  for (const run of segments) longestLength = Math.max(longestLength, run.length)
+  return { current: segments.find((run) => run.end === to) ?? null, longestLength, longest: segments.filter((run) => run.length === longestLength) }
+}
+
 export function calculateSalahPeriodInsights(
   inputStore: SalahLogStore,
   period: SalahPeriodKey,
@@ -155,6 +207,7 @@ export function calculateSalahRangeInsights(
     mostConsistent: findMostConsistent(prayers, dayCount),
     mostImproved: findMostImproved(store, prayers, previousDays),
     allFive: countCompleteDays(store, days),
+    fullDayStreaks: summarizeSalahStreakPeriod(deriveSalahStreakRuns(store, today), ymd(start), ymd(end)),
     strongestWeekday: findStrongestWeekday(store, days),
     trendInterval,
     trend: starDayCount === 0 ? [] : buildTrend(store, days, trendInterval)
@@ -285,6 +338,22 @@ function findStrongestWeekday(store: SalahLogStore, days: Date[]) {
     logged: best.logged,
     rate: best.rate
   }
+}
+
+/** Daily points keep a current-week chart meaningful instead of one weekly bucket. */
+export function calculateSalahWeekDailyTrend(input: SalahLogStore, today = new Date()): SalahTrendPoint[] {
+  const store = normalizeSalahLogStore(input)
+  return eachDay(startOfWeek(today), today).map(day => {
+    const log = store[ymd(day)]
+    let completed = 0
+    let logged = 0
+    for (const prayer of SALAH_PRAYERS) {
+      if (typeof log?.[prayer] !== 'boolean') continue
+      logged += 1
+      if (log[prayer]) completed += 1
+    }
+    return { key: ymd(day), label: day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), completed, logged, rate: percentage(completed, logged), stars: completed, possibleStars: 5, elapsedDays: 1 }
+  })
 }
 
 function buildTrend(store: SalahLogStore, days: Date[], interval: 'week' | 'month'): SalahTrendPoint[] {

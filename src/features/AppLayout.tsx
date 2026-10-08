@@ -30,6 +30,9 @@ export default function AppLayout({ go }: Props) {
         <h2 className="font-semibold">Custom Layout</h2>
         <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} className="h-5 w-5 accent-teal-600" />Enable Custom Layout when saved</label>
         <p className="text-xs leading-5 text-gray-400">Off restores the standard arrangement while retaining your custom lists. Changes below remain a draft until Save layout.</p>
+        <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.homeSections?.salahBrief === true} onChange={(event) => setDraft(current => ({ ...current, homeSections: { ...current.homeSections, salahBrief: event.target.checked } }))} className="h-5 w-5 accent-teal-600" />Show Salah Brief below Home's prayer preview</label>
+        <p className="text-xs text-gray-400">This week's tracker graphs use your local records. Visible only with Custom Layout enabled; no prayer history is included when sharing layout.</p>
+        <label className="block text-sm">Salah Brief chart<select value={draft.homeSections?.salahBriefView ?? 'line'} disabled={!draft.homeSections?.salahBrief} onChange={event => { const view = event.target.value === 'bars' ? 'bars' : 'line'; setDraft(current => ({ ...current, homeSections: { ...current.homeSections, salahBrief: current.homeSections?.salahBrief === true, salahBriefView: view } })) }} className="mt-2 min-h-11 w-full rounded-md border border-gray-600 bg-gray-950 p-2 disabled:opacity-40"><option value="line">Line graph — daily trend this week</option><option value="bars">Prayer bars — per-prayer rates this week</option></select></label>
         {surfaces.map(({ id, title }) => <ShortcutEditor key={id} surface={id} title={title} list={draft[id]} language={language} onChange={(list) => updateList(id, list)} />)}
         <div className="flex flex-wrap gap-2">
           <button type="button" className={buttonClass} aria-expanded={preview} onClick={() => setPreview((value) => !value)}>{preview ? 'Hide preview' : 'Preview layout'}</button>
@@ -70,7 +73,7 @@ function ShortcutEditor({ surface, title, list, language, onChange }: { surface:
   return (
     <fieldset className="space-y-3 rounded-md border border-gray-700 p-3"><legend className="px-1 text-sm font-semibold">{title}</legend>
       {surface === 'navigation' && <p className="text-xs text-gray-400">Home is always first and cannot be removed. {list.length}/4 extra buttons.</p>}
-      {surface === 'home' && <p className="text-xs text-gray-400">Prayer preview and source information are protected. Feature Hub and any required Settings fallback remain accessible.</p>}
+      {surface === 'home' && <p className="text-xs text-gray-400">Prayer preview and source information are protected. Search and Feature Hub remain in Home's header; Settings is always available inside the Hub.</p>}
       {list.length === 0 && <p className="text-sm text-gray-400">No optional shortcuts. Features remain accessible through Feature Hub.</p>}
       <ol className="space-y-2">{list.map((id, index) => <li key={id} className="rounded-md bg-gray-900 p-2"><span className="block px-1 pb-2 text-sm font-medium">{index + 1}. {rootFeatureLabel(id, language)}</span><div className="flex flex-wrap gap-2"><button type="button" className={buttonClass} disabled={index === 0} aria-label={`Move ${rootFeatureLabel(id, language)} up in ${title}`} onClick={() => move(index, -1)}>↑ Up</button><button type="button" className={buttonClass} disabled={index === list.length - 1} aria-label={`Move ${rootFeatureLabel(id, language)} down in ${title}`} onClick={() => move(index, 1)}>↓ Down</button><button type="button" className={buttonClass} aria-label={`Remove ${rootFeatureLabel(id, language)} from ${title}`} onClick={() => onChange(list.filter((value) => value !== id))}>Remove</button></div></li>)}</ol>
       <label className="block text-sm">Add a shortcut<select aria-label={`Add shortcut to ${title}`} className="mt-2 min-h-11 w-full rounded-md border border-gray-600 bg-gray-950 p-2" value="" disabled={surface === 'navigation' && list.length >= 4} onChange={(event) => { if (event.target.value) onChange([...list, event.target.value as RootFeatureId]) }}><option value="">Choose a feature</option>{eligible.map((id) => <option key={id} value={id}>{rootFeatureLabel(id, language)}</option>)}</select></label>
@@ -84,13 +87,14 @@ function LayoutPreview({ draft, language }: { draft: AppLayoutPreferences; langu
     <section aria-label="Draft layout preview" className="space-y-4 rounded-md border border-teal-700 bg-gray-950 p-3">
       <h3 className="font-semibold text-teal-200">Preview — not applied</h3>
       <p className="text-xs text-gray-400">{draft.enabled ? 'Custom layout' : 'Standard layout (custom lists retained)'}</p>
-      {!displayed.navigation.includes('Settings') && <p className="text-right text-xs text-teal-200">Home top right: Settings</p>}
+      <p className="text-xs text-teal-200">Home header: Search · Home · Feature Hub. Settings remains inside Feature Hub.</p>
       <div className="space-y-3" aria-label="Home shortcut preview">
         <h4 className="text-sm font-semibold">Home</h4>
         <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
           <p className="font-semibold">Protected prayer preview</p>
           <p className="mt-1 text-xs text-gray-400">Current prayer, next prayer, countdown, date, and source remain unchanged.</p>
         </div>
+        {displayed.homeSections?.salahBrief && <div className="rounded-lg border border-teal-800 bg-gray-800 p-4 text-sm text-teal-200">Salah Brief — this week's tracker graphs · {displayed.homeSections.salahBriefView === 'bars' ? 'Prayer bars' : 'Line graph'}</div>}
         {displayed.home.map((id) => <div key={id} className="rounded-lg bg-gray-800 p-4 text-center text-sm font-semibold">{rootFeatureLabel(id, language)}</div>)}
       </div>
       <div className="space-y-2" aria-label="More shortcut preview">

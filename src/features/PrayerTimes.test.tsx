@@ -1,4 +1,4 @@
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PrayerTimes from './PrayerTimes'
 
@@ -11,7 +11,7 @@ vi.mock('../lib/primaryPrayerSource', () => ({
   primaryTimeViewLabel: () => 'Device time',
 }))
 vi.mock('../lib/prayer', () => ({ nextPrayer: mocks.nextPrayer }))
-vi.mock('./PrayerMonth', () => ({ default: () => null }))
+vi.mock('./PrayerMonth', () => ({ default: () => <div>Monthly timetable fixture</div> }))
 
 const times = Object.fromEntries(['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'].map((name) => [name, new Date('2026-10-05T12:00:00Z')]))
 const context = { times, nextFajr: new Date('2026-10-06T05:00:00Z'), dateKey: '2026-10-05', locationLabel: 'Test city', sourceLabel: 'Test method', savedCity: null }
@@ -28,6 +28,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('Prayer Times request lifecycle', () => {
+  it('opens the actual monthly view from a typed intent, and Today returns to prayer times', async () => {
+    await act(async () => { render(<PrayerTimes navigationIntent={{ screen: 'Prayer', view: 'month' }} />) })
+    expect(screen.getByText('Monthly timetable fixture')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '← Today' }))
+    expect(screen.queryByText('Monthly timetable fixture')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Monthly View' })).toBeInTheDocument()
+  })
+
+  it('supports the old PrayerMonth alias and another intent on an already mounted screen', async () => {
+    let view!: ReturnType<typeof render>
+    await act(async () => { view = render(<PrayerTimes navigationIntent={{ screen: 'PrayerMonth' }} />) })
+    expect(screen.getByText('Monthly timetable fixture')).toBeInTheDocument()
+    view.rerender(<PrayerTimes navigationIntent={{ screen: 'Prayer' }} />)
+    expect(screen.queryByText('Monthly timetable fixture')).not.toBeInTheDocument()
+  })
+
   it('ignores initial calculation arriving after screen close', async () => {
     let resolve!: (value: typeof context) => void
     mocks.context.mockReturnValue(new Promise((done) => { resolve = done }))

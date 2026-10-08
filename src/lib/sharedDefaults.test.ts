@@ -1,5 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { applySharedDefaults, createSharedDefaultsUrl, parseSharedDefaultsUrl } from './sharedDefaults'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { applySharedDefaults, createSharedDefaults, createSharedDefaultsUrl, parseSharedDefaultsUrl } from './sharedDefaults'
+import { APP_LAYOUT_EVENT, APP_LAYOUT_KEY, defaultAppLayout, loadAppLayout, saveAppLayout } from './appLayout'
+
+afterEach(() => vi.restoreAllMocks())
+
+function link(value: unknown) { return `https://athan.example/#share-defaults=${btoa(JSON.stringify(value))}` }
 
 describe('shared defaults', () => {
   beforeEach(() => {
@@ -75,5 +80,120 @@ describe('shared defaults', () => {
   it('rejects malformed and unsupported links', () => {
     expect(parseSharedDefaultsUrl('https://athan.example/#share-defaults=not-valid')).toBeNull()
     expect(parseSharedDefaultsUrl('https://athan.example/')).toBeNull()
+  })
+
+  it('shares a strict v2 arrangement only when selected, excluding injected personal fields', () => {
+    const layout = { ...defaultAppLayout(), enabled: true, navigation: ['Quran', 'Iqama'], home: [], more: ['SalahTracker'], homeSections: { salahBrief: true, salahBriefView: 'bars', graph: 'PRIVATE_SENTINEL' }, notes: 'PRIVATE_SENTINEL' }
+    localStorage.setItem(APP_LAYOUT_KEY, JSON.stringify(layout))
+    for (const key of ['salahLogV1', 'salahSavedSearchesV1', 'salahRecentSearchesV1', 'athan.performance.v1', 'athan.settings.sections.v1', 'athan.salah.reminder.v1', 'athan.quran.progress.v1', 'athan.location.cache.v1']) localStorage.setItem(key, 'PRIVATE_SENTINEL')
+    expect(createSharedDefaults().version).toBe(1)
+    expect(createSharedDefaults().layout).toBeUndefined()
+    const parsed = parseSharedDefaultsUrl(createSharedDefaultsUrl('https://athan.example', { includeLayout: true }))!
+    expect(parsed.version).toBe(2)
+    expect(parsed.layout).toEqual({ schemaVersion: 1, enabled: true, navigation: ['Quran', 'Iqama'], home: [], more: ['SalahTracker'], homeSections: { salahBrief: true, salahBriefView: 'bars' } })
+    expect(JSON.stringify(parsed)).not.toContain('PRIVATE_SENTINEL')
+    expect(Object.keys(parsed)).toEqual(['app', 'version', 'prayer', 'preferences', 'reminders', 'layout'])
+  })
+
+  it('strips unknown nested fields from all ordinary defaults, and ignores layout injected in v1', () => {
+    const raw = createSharedDefaults()
+    const parsed = parseSharedDefaultsUrl(link({ ...raw, prayer: { ...raw.prayer, logs: 'PRIVATE' }, preferences: { ...raw.preferences, history: 'PRIVATE' }, reminders: { ...raw.reminders, tracker: 'PRIVATE' }, layout: defaultAppLayout(), layoutWarnings: ['PRIVATE'] }))
+    expect(parsed).toEqual(raw)
+    expect(JSON.stringify(parsed)).not.toContain('PRIVATE')
+  })
+
+  it('does not apply offered layout without separate recipient consent, and dispatches on explicit consent', () => {
+    saveAppLayout({ ...defaultAppLayout(), enabled: true, navigation: ['Iqama'], homeSections: { salahBrief: true } })
+    const offered = createSharedDefaults({ includeLayout: true })
+    saveAppLayout({ ...defaultAppLayout(), enabled: false, navigation: ['Settings'] })
+    const existing = localStorage.getItem(APP_LAYOUT_KEY)
+    applySharedDefaults(offered)
+    expect(localStorage.getItem(APP_LAYOUT_KEY)).toBe(existing)
+    const listener = vi.fn()
+    window.addEventListener(APP_LAYOUT_EVENT, listener)
+    applySharedDefaults(offered, { applyLayout: true })
+    expect(loadAppLayout()).toEqual(offered.layout)
+    expect(listener).toHaveBeenCalledTimes(1)
+    window.removeEventListener(APP_LAYOUT_EVENT, listener)
+  })
+
+  it('preserves disabled custom arrangements and empty lists', () => {
+    saveAppLayout({ ...defaultAppLayout(), enabled: false, navigation: [], home: [], more: [], homeSections: { salahBrief: true } })
+    const parsed = parseSharedDefaultsUrl(createSharedDefaultsUrl('https://athan.example', { includeLayout: true }))!
+    expect(parsed.layout).toEqual(loadAppLayout())
+    expect(parsed.layout?.enabled).toBe(false)
+    expect(parsed.layout?.homeSections?.salahBrief).toBe(true)
+  })
+
+  it.each([undefined, null, [], { schemaVersion: 99 }, { ...defaultAppLayout(), navigation: 'Iqama' }, { ...defaultAppLayout(), homeSections: { salahBrief: 'true' } }, { ...defaultAppLayout(), homeSections: { salahBrief: true, salahBriefView: 'bad' } }])('omits malformed layout %j without resetting recipient layout', (layout) => {
+    const existing = { ...defaultAppLayout(), enabled: true, navigation: ['Quran'] as const }
+    localStorage.setItem(APP_LAYOUT_KEY, JSON.stringify(existing))
+    const parsed = parseSharedDefaultsUrl(link({ ...createSharedDefaults(), version: 2, layout }))!
+    expect(parsed).not.toBeNull()
+    expect(parsed.layout).toBeUndefined()
+    expect(parsed.layoutWarnings?.length).toBeGreaterThan(0)
+    applySharedDefaults(parsed, { applyLayout: true })
+    expect(JSON.parse(localStorage.getItem(APP_LAYOUT_KEY)!)).toEqual(existing)
+  })
+
+  it('normalizes unknown IDs, duplicate/forbidden placements and excess tabs with visible feedback', () => {
+    const layout = { ...defaultAppLayout(), navigation: ['Home', 'Quran', 'Quran', 'UnknownFutureFeature', 'Iqama', 'Qibla', 'Credits', 'More'], home: ['Home', 'Iqama'], more: ['More', 'Quran'] }
+    const parsed = parseSharedDefaultsUrl(link({ ...createSharedDefaults(), version: 2, layout }))!
+    expect(parsed.layout?.navigation).toEqual(['Quran', 'Iqama', 'Qibla', 'Credits'])
+    expect(parsed.layout?.home).toEqual(['Iqama'])
+    expect(parsed.layout?.more).toEqual(['Quran'])
+    expect(parsed.layoutWarnings?.join(' ')).toMatch(/unrecognized/)
+    expect(parsed.layoutWarnings?.join(' ')).toMatch(/four extras/)
+  })
+
+  it('never changes a layout or personal records when applying an older link', () => {
+    const offered = createSharedDefaults()
+    const keys = [APP_LAYOUT_KEY, 'salahLogV1', 'salahSavedSearchesV1', 'athan.salah.reminder.v1', 'athan.performance.v1', 'athan.settings.sections.v1']
+    keys.forEach((key) => localStorage.setItem(key, 'PRIVATE_RECIPIENT'))
+    applySharedDefaults(offered, { applyLayout: true })
+    keys.forEach((key) => expect(localStorage.getItem(key)).toBe('PRIVATE_RECIPIENT'))
+  })
+
+  it('reports a first-write failure without falsely claiming success', () => {
+    const offered = createSharedDefaults()
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('quota') })
+    expect(() => applySharedDefaults(offered)).toThrow(/Nothing was changed/)
+  })
+
+  it('reports partial writes and preserves existing layout and records when layout storage fails', () => {
+    const offered = createSharedDefaults({ includeLayout: true })
+    localStorage.setItem(APP_LAYOUT_KEY, 'RECIPIENT_LAYOUT')
+    localStorage.setItem('salahLogV1', 'PRIVATE_RECORDS')
+    const write = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === APP_LAYOUT_KEY) throw new Error('quota')
+      write.call(this, key, value)
+    })
+    expect(() => applySharedDefaults(offered, { applyLayout: true })).toThrow(/Some defaults were saved/)
+    expect(localStorage.getItem(APP_LAYOUT_KEY)).toBe('RECIPIENT_LAYOUT')
+    expect(localStorage.getItem('salahLogV1')).toBe('PRIVATE_RECORDS')
+    expect(localStorage.getItem('method')).toBe(offered.prayer.method)
+  })
+
+  it('notifies the active UI when language was saved before a later write failed', () => {
+    const offered = createSharedDefaults()
+    offered.preferences.language = 'ar'
+    const listener = vi.fn()
+    window.addEventListener('athan-language-change', listener)
+    const write = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === 'athan.preference.timeFormat.v1') throw new Error('quota')
+      write.call(this, key, value)
+    })
+    expect(() => applySharedDefaults(offered)).toThrow(/Some defaults were saved/)
+    expect(localStorage.getItem('athan.language.v1')).toBe('ar')
+    expect(document.documentElement.dir).toBe('rtl')
+    expect(listener).toHaveBeenCalledOnce()
+    window.removeEventListener('athan-language-change', listener)
+  })
+
+  it('rejects oversized or unsupported ordinary payloads', () => {
+    expect(parseSharedDefaultsUrl(link({ ...createSharedDefaults(), version: 3 }))).toBeNull()
+    expect(parseSharedDefaultsUrl(link({ ...createSharedDefaults(), ignored: 'x'.repeat(12000) }))).toBeNull()
   })
 })

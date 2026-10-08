@@ -1,6 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import Home from '../features/Home'
-import type { Screen } from '../types/nav'
+import type { NavigationIntent, Screen } from '../types/nav'
 import { visibleRootFeatures, type AppLayoutPreferences } from './appLayout'
 import type { PerformancePreferences } from './performancePreferences'
 import { rootForScreen } from './rootFeatures'
@@ -9,6 +9,9 @@ export type FeatureScreenProps = {
   go: (screen: string) => void
   initialDate?: string
   onOpenDay: (date: string) => void
+  navigationIntent?: NavigationIntent
+  onNavigate?: (intent: NavigationIntent) => void
+  onNavigationHandled?: () => void
 }
 export type FeatureScreenModule = { default: ComponentType<FeatureScreenProps> }
 type Importer = () => Promise<FeatureScreenModule>
@@ -42,6 +45,7 @@ const importers: Record<Screen, Importer> = {
   Onboarding: () => import('../features/Onboarding'),
   FeatureHub: () => import('../features/FeatureHub'),
   AppLayout: () => import('../features/AppLayout'),
+  FeatureSearch: () => import('../features/FeatureSearch'),
 }
 
 const canonicalScreen = (screen: Screen): Screen => screen === 'PrayerMonth' ? 'Prayer' : screen
@@ -92,7 +96,8 @@ export const resetFeatureScreen = loader.reset
 
 /** Pure policy: preparation is code readiness, not permission/data/background work. */
 export function preparationScreens(layout: AppLayoutPreferences, performance: PerformancePreferences): Screen[] {
-  const screens = Object.keys(importers).filter((screen) => screen !== 'PrayerMonth') as Screen[]
+  // Search is a protected on-demand utility, not a root that must be prepared.
+  const screens = Object.keys(importers).filter((screen) => screen !== 'PrayerMonth' && screen !== 'FeatureSearch') as Screen[]
   if (performance.enabled) {
     const priorities = new Set(['Home', ...performance.priorities])
     return screens.filter((screen) => priorities.has(rootForScreen(screen)))

@@ -12,6 +12,7 @@ type Props = {
 export default function Credits({ go, backTarget }: Props) {
   const [message, setMessage] = useState<string | null>(null)
   const [updateStatus, setUpdateStatus] = useState('')
+  const [includeLayout, setIncludeLayout] = useState(false)
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const buyMeACoffee = 'https://buymeacoffee.com/bigmaqstudio'
@@ -39,20 +40,19 @@ export default function Credits({ go, backTarget }: Props) {
   }
 
   async function shareDefaults() {
-    const url = createSharedDefaultsUrl(window.location.href)
-    const shareData = {
-      title: 'Athan PWA defaults',
-      text: 'Apply my non-personal Athan PWA prayer and app defaults. Worship history, Quran progress, and location data are not included.',
-      url
-    }
-
     try {
+      const url = createSharedDefaultsUrl(window.location.href, { includeLayout })
+      const shareData = {
+        title: 'Athan PWA defaults',
+        text: `Apply my non-personal Athan PWA prayer and app defaults${includeLayout ? ' and selected custom layout' : ''}. Worship history, Quran progress, and location data are not included.`,
+        url
+      }
       if (navigator.share) {
         await navigator.share(shareData)
-        setMessage('Shared your non-personal defaults.')
+        setMessage(includeLayout ? 'Shared defaults and custom layout. No personal worship data was included.' : 'Shared your non-personal defaults.')
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(url)
-        setMessage('Defaults link copied. No personal worship data was included.')
+        setMessage(includeLayout ? 'Defaults and custom layout link copied. No personal worship data was included.' : 'Defaults link copied. No personal worship data was included.')
       } else {
         setMessage('Sharing is not available in this browser.')
       }
@@ -107,7 +107,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v4.0.0 — Your App, Your Flow: optional custom layouts and internal Performance Mode, cleaner Settings, fixed-capacity Salah stars, richer private search and saved searches."
+            value="v4.0.1 — Clearer Navigation & Salah Streaks: compact Home navigation and destination search, all-five streak search and analytics, optional weekly Salah Brief, teal stars, collapsible search help, consented layout sharing, and a refreshed Need Help main feature."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>
@@ -144,9 +144,15 @@ export default function Credits({ go, backTarget }: Props) {
             Share Your Defaults
           </button>
         </div>
+        <label className="flex min-h-11 items-center gap-3 text-sm text-teal-200">
+          <input type="checkbox" checked={includeLayout} onChange={(event) => setIncludeLayout(event.target.checked)} className="h-5 w-5 accent-teal-500" />
+          Include custom layout in shared defaults
+        </label>
         <p className="text-xs leading-5 text-gray-400">
-          Shared defaults include prayer calculation and general preferences only. Your Salah and Ramadan trackers,
-          Quran activity, locations, and other personal data are never shared.
+          Ordinary links include prayer calculation and general preferences only. If selected, custom layout adds
+          button order, Salah Brief visibility and chart choice, never graph values. The recipient chooses whether to apply it.
+          Layout links require an updated app. Tracker history, notes, searches, tracker reminder preferences,
+          Performance Mode, Quran activity, locations, and profiles are never included.
         </p>
         {message && (
           <p role="status" className="rounded-md bg-gray-900 px-3 py-2 text-sm text-teal-300">

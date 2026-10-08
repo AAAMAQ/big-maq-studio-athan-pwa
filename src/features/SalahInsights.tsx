@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { calculateSalahRangeInsights, parseSalahDate, SALAH_PRAYERS, type SalahPeriodInsights, type SalahRangeSelection } from '../lib/salahInsights'
 import { useSalahData } from '../lib/useSalahData'
 import SalahRangePicker from './SalahRangePicker'
+import SalahFullDayStreakSummary from '../components/SalahFullDayStreakSummary'
 
 export default function SalahInsights() {
   const { store, todayKey } = useSalahData()
@@ -29,6 +30,7 @@ export default function SalahInsights() {
             <p className="mt-1 text-xs text-gray-400">{insights.daysWithLogs}/{insights.stars.elapsedDays} days with obligatory logs. Missed and unlogged slots earn zero stars, including blank past days. Completion rates below use logged prayers only.</p>
           </section>
           {insights.daysWithLogs === 0 ? <p className="rounded bg-gray-800 p-4 text-sm text-gray-300">No obligatory prayer data is logged for this period.</p> : null}
+          <SalahFullDayStreakSummary insights={insights} />
           <section aria-label="Per-prayer statistics" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {SALAH_PRAYERS.map((prayer) => {
               const stats = insights.prayers[prayer]

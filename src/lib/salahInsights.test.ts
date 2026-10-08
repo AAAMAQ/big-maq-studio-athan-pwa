@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { calculateSalahPeriodInsights, calculateSalahRangeInsights, normalizeSalahLogStore, summarizeSalahDay, type SalahLogStore } from './salahInsights'
+import { calculateSalahPeriodInsights, calculateSalahRangeInsights, calculateSalahWeekDailyTrend, normalizeSalahLogStore, summarizeSalahDay, type SalahLogStore } from './salahInsights'
+
+describe('current-week daily trend', () => {
+  it('preserves unknown gaps, explicit zero rates and fixed star capacity, excluding future and Sunnahs', () => {
+    const points = calculateSalahWeekDailyTrend({ '2026-10-04': { Fajr: false }, '2026-10-05': { Notes: 'Only notes', Sunnah: true }, '2026-10-06': { Fajr: true, Dhuhr: false }, '2026-10-09': { Fajr: true } }, new Date(2026, 9, 8))
+    expect(points.map(point => point.rate)).toEqual([0, null, 50, null, null])
+    expect(points.map(point => point.possibleStars)).toEqual([5, 5, 5, 5, 5])
+    expect(points[2]).toMatchObject({ completed: 1, logged: 2, stars: 1 })
+  })
+  it('uses calendar dates across year and DST boundaries and resets on Sunday', () => {
+    expect(calculateSalahWeekDailyTrend({}, new Date(2026, 0, 1)).map(point => point.key)).toEqual(['2025-12-28', '2025-12-29', '2025-12-30', '2025-12-31', '2026-01-01'])
+    expect(calculateSalahWeekDailyTrend({}, new Date(2026, 2, 14))).toHaveLength(7)
+    expect(calculateSalahWeekDailyTrend({}, new Date(2026, 2, 15)).map(point => point.key)).toEqual(['2026-03-15'])
+  })
+})
 
 describe('normalizeSalahLogStore', () => {
   it('preserves completed, missed, Sunnah, daily notes, and legacy status values', () => {

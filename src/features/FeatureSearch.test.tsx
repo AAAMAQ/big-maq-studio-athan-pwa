@@ -1,0 +1,48 @@
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import FeatureSearch from './FeatureSearch'
+
+beforeEach(() => localStorage.clear())
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
+describe('predictive app search', () => {
+  it('offers bounded local suggestions and dispatches internal monthly/Surah/Juz intents', () => {
+    const navigate = vi.fn()
+    const fetch = vi.spyOn(globalThis, 'fetch')
+    render(<FeatureSearch onNavigate={navigate} />)
+    const input = screen.getByRole('combobox', { name: 'Screen or Surah' })
+    expect(input).toHaveFocus()
+    expect(screen.getAllByRole('option')).toHaveLength(10)
+    fireEvent.change(input, { target: { value: 'month' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Prayer', view: 'month' })
+    fireEvent.change(input, { target: { value: 'Al-Kahf' } })
+    fireEvent.click(screen.getByRole('option', { name: /18.*Al-Kahf/ }))
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Quran', surah: 18 })
+    fireEvent.change(input, { target: { value: 'juz 30' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Quran', juz: 30 })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('supports active-option arrows, Escape, no-match states and touch selection', () => {
+    const navigate = vi.fn()
+    render(<FeatureSearch onNavigate={navigate} />)
+    const input = screen.getByRole('combobox')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(input).toHaveAttribute('aria-activedescendant', screen.getAllByRole('option')[1].id)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Prayer' })
+    fireEvent.change(input, { target: { value: 'unknown screen' } })
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(input).not.toHaveAttribute('aria-activedescendant')
+    expect(screen.getByRole('status')).toHaveTextContent('No matching screen')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(navigate).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Home' })
+    fireEvent.change(input, { target: { value: 'settings' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Settings — App' }))
+    expect(navigate).toHaveBeenLastCalledWith({ screen: 'Settings' })
+  })
+})

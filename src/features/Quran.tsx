@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchSurah, fetchSurahs } from '../lib/quran'
 import { completeSurah, loadQuranProgress, markAyahRead, toggleFavoriteSurah, type QuranProgress } from '../lib/quranProgress'
 import { isQuranTranslation, type QuranTranslation } from '../lib/quranProviders'
 import { formatAppTime } from '../lib/preferences'
+import { JUZ_STARTS } from '../lib/quranDestinations'
+import type { NavigationIntent } from '../types/nav'
 
 type SurahItem = {
   number: number
@@ -15,20 +17,13 @@ type SurahItem = {
 type Ayah = { number: number; text: string }
 type ViewMode = 'ar' | 'ar-en'
 type HubPanel = 'surahs' | 'juz' | 'bookmarks' | 'search' | 'daily' | null
-type Props = { go?: (screen: string) => void }
+type Props = { go?: (screen: string) => void; navigationIntent?: NavigationIntent; onNavigationHandled?: () => void }
 
 const BOOKMARKS_KEY = 'quranBookmarks'
 const FONT_SIZE_KEY = 'quranFontPct'
 const VIEW_MODE_KEY = 'quranViewMode'
 const TRANSLATION_KEY = 'athan.quran.translation.v1'
 const READ_AYAHS_KEY = 'athan.quran.readAyahs.v1'
-
-const JUZ_STARTS = [
-  [1, 1], [2, 142], [2, 253], [3, 93], [4, 24], [4, 148], [5, 82], [6, 111],
-  [7, 88], [8, 41], [9, 93], [11, 6], [12, 53], [15, 1], [17, 1], [18, 75],
-  [21, 1], [23, 1], [25, 21], [27, 56], [29, 46], [33, 31], [36, 28], [39, 32],
-  [41, 47], [46, 1], [51, 31], [58, 1], [67, 1], [78, 1]
-] as const
 
 const clamp = (number: number, min: number, max: number) => Math.min(max, Math.max(min, number))
 const bookmarkKey = (surah: number, ayah: number) => `${surah}:${ayah}`
@@ -79,9 +74,16 @@ function percentFor(lastAyah: number, totalAyahs?: number) {
   return clamp(Math.round((lastAyah / totalAyahs) * 100), 0, 100)
 }
 
-export default function Quran({ go }: Props) {
+export default function Quran({ go, navigationIntent, onNavigationHandled }: Props) {
   const [surahs, setSurahs] = useState<SurahItem[]>([])
-  const [selected, setSelected] = useState<number>(1)
+  const [progress, setProgress] = useState<QuranProgress>(loadQuranProgress)
+  const [selected, setSelected] = useState<number>(() => {
+    if (navigationIntent?.screen !== 'Quran') return 1
+    if ('surah' in navigationIntent && Number.isInteger(navigationIntent.surah) && navigationIntent.surah >= 1 && navigationIntent.surah <= 114) return navigationIntent.surah
+    if ('juz' in navigationIntent) return JUZ_STARTS[navigationIntent.juz - 1]?.[0] ?? 1
+    if ('view' in navigationIntent && navigationIntent.view === 'continue') return progress.lastReadSurah ?? 1
+    return 1
+  })
   const [arabic, setArabic] = useState<Ayah[]>([])
   const [english, setEnglish] = useState<Ayah[]>([])
   const [bismillah, setBismillah] = useState<string | null>(null)
@@ -91,7 +93,6 @@ export default function Quran({ go }: Props) {
   const [mode] = useState<ViewMode>(() => (
     localStorage.getItem(VIEW_MODE_KEY) === 'ar' ? 'ar' : 'ar-en'
   ))
-  const [progress, setProgress] = useState<QuranProgress>(loadQuranProgress)
   const [bookmarks, setBookmarks] = useState<Set<string>>(loadBookmarks)
   const [readAyahs, setReadAyahs] = useState<Set<string>>(loadReadAyahs)
   const [showOnlyBookmarks, setShowOnlyBookmarks] = useState(false)
@@ -106,6 +107,10 @@ export default function Quran({ go }: Props) {
   const [statusMessage, setStatusMessage] = useState('')
   const [dailyAyah, setDailyAyah] = useState<{ surah: SurahItem; arabic: string; english: string; ayah: number } | null>(null)
   const [pendingAyah, setPendingAyah] = useState<number | null>(null)
+  const handledIntent = useRef<NavigationIntent | undefined>(undefined)
+  const panelTarget = useRef<HTMLElement>(null)
+  const recentTarget = useRef<HTMLElement>(null)
+  const [requestedView, setRequestedView] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -168,7 +173,8 @@ export default function Quran({ go }: Props) {
     let secondFrame = 0
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
-        const target = document.getElementById(`ayah-${selected}-${pendingAyah}`)
+        const targetAyah = arabic.length ? clamp(pendingAyah, 1, arabic.length) : pendingAyah
+        const target = document.getElementById(`ayah-${selected}-${targetAyah}`)
         if (!target) return
         target.scrollIntoView({ behavior: 'smooth', block: 'center' })
         setPendingAyah(null)
@@ -178,7 +184,7 @@ export default function Quran({ go }: Props) {
       window.cancelAnimationFrame(firstFrame)
       window.cancelAnimationFrame(secondFrame)
     }
-  }, [loadedSurah, loading, pendingAyah, readerOpen, selected])
+  }, [arabic, loadedSurah, loading, pendingAyah, readerOpen, selected])
 
   const selectedSurah = surahs.find((surah) => surah.number === selected)
   const continueSurah = progress.lastReadSurah
@@ -233,7 +239,7 @@ export default function Quran({ go }: Props) {
     return [...surahMatches, ...ayahMatches]
   }, [english, searchQuery, selectedSurah, surahs])
 
-  function openReader(surah: number, ayah?: number) {
+  const openReader = useCallback((surah: number, ayah?: number) => {
     const surahInfo = surahs.find((item) => item.number === surah)
     const resumeAyah = ayah ?? progress.perSurahProgress[String(surah)]?.lastAyah ?? 1
     const targetAyah = surahInfo
@@ -243,8 +249,40 @@ export default function Quran({ go }: Props) {
     setPendingAyah(targetAyah)
     setReaderOpen(true)
     setPanel(null)
+    setRequestedView(null)
     setShowOnlyBookmarks(false)
-  }
+  }, [surahs, progress.perSurahProgress])
+
+  useEffect(() => {
+    if (!navigationIntent || navigationIntent.screen !== 'Quran' || handledIntent.current === navigationIntent) return
+    handledIntent.current = navigationIntent
+    if ('surah' in navigationIntent) {
+      if (Number.isInteger(navigationIntent.surah) && navigationIntent.surah >= 1 && navigationIntent.surah <= 114) openReader(navigationIntent.surah)
+    } else if ('juz' in navigationIntent) {
+      const start = JUZ_STARTS[navigationIntent.juz - 1]
+      if (start) openReader(start[0], start[1])
+    } else if ('view' in navigationIntent) {
+      if (navigationIntent.view === 'continue') openReader(progress.lastReadSurah ?? 1, progress.lastReadAyah ?? 1)
+      else {
+        setReaderOpen(false)
+        setPanel(navigationIntent.view === 'saved' ? 'bookmarks' : navigationIntent.view === 'recent' ? null : navigationIntent.view)
+        setRequestedView(navigationIntent.view)
+      }
+    }
+    onNavigationHandled?.()
+  }, [navigationIntent, openReader, progress.lastReadSurah, progress.lastReadAyah, onNavigationHandled])
+
+  useEffect(() => {
+    if (readerOpen || !requestedView) return
+    const target = requestedView === 'recent' ? recentTarget.current : panel ? panelTarget.current : null
+    if (!target) return
+    const frame = window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (requestedView === 'search') target.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+      setRequestedView(null)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [requestedView, panel, readerOpen])
 
   function continueReading() {
     if (!progress.lastReadSurah || !progress.lastReadAyah) return
@@ -450,7 +488,7 @@ export default function Quran({ go }: Props) {
       </section>
 
       {panel === 'surahs' && (
-        <section className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
+        <section ref={panelTarget} className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
           <div className="max-h-72 space-y-1 overflow-y-auto pr-1">
             {surahs.map((surah) => {
               const saved = progress.perSurahProgress[String(surah.number)]
@@ -470,7 +508,7 @@ export default function Quran({ go }: Props) {
       )}
 
       {panel === 'juz' && (
-        <section className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
+        <section ref={panelTarget} className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
           <p className="mb-3 text-xs text-gray-400">Open a Juz at its first Ayah.</p>
           <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
             {JUZ_STARTS.map(([surah, ayah], index) => (
@@ -483,7 +521,7 @@ export default function Quran({ go }: Props) {
       )}
 
       {panel === 'bookmarks' && (
-        <section className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
+        <section ref={panelTarget} className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Saved Quran Places</h3>
             <button type="button" onClick={clearBookmarks} className="rounded-md bg-gray-700 px-3 py-2 text-xs text-gray-200 hover:bg-red-900/50">Clear Bookmarks</button>
@@ -507,8 +545,9 @@ export default function Quran({ go }: Props) {
       )}
 
       {panel === 'search' && (
-        <section className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
+        <section ref={panelTarget} className="rounded-md border border-gray-700 bg-gray-800/60 p-3">
           <input
+            aria-label="Search Quran verses"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search Al-Baqarah, 2, or 2:255"
@@ -528,7 +567,7 @@ export default function Quran({ go }: Props) {
       )}
 
       {panel === 'daily' && (
-        <section className="rounded-md border border-teal-800/60 bg-gray-800/60 p-4">
+        <section ref={panelTarget} className="rounded-md border border-teal-800/60 bg-gray-800/60 p-4">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-semibold text-white">Ayah of the Day</h3>
             {dailyAyah && <span className="text-xs text-teal-300">{dailyAyah.surah.englishName} {dailyAyah.ayah}</span>}
@@ -568,7 +607,7 @@ export default function Quran({ go }: Props) {
         )}
       </section>
 
-      <section>
+      <section ref={recentTarget}>
         <h3 className="mb-3 font-semibold text-white">Recently Read</h3>
         {recentSurahs.length ? (
           <div className="divide-y divide-gray-800 border-y border-gray-800">

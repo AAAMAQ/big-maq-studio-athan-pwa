@@ -41,7 +41,7 @@ describe('v4 personal configuration backups', () => {
   beforeEach(() => localStorage.clear())
 
   it('round-trips custom layout, independent performance, collapsed sections and scoped searches', () => {
-    localStorage.setItem(APP_LAYOUT_KEY, JSON.stringify({schemaVersion:1,enabled:true,navigation:['Quran','Iqama'],home:[],more:[]}))
+    localStorage.setItem(APP_LAYOUT_KEY, JSON.stringify({schemaVersion:1,enabled:true,navigation:['Quran','Iqama'],home:[],more:[],homeSections:{salahBrief:true,salahBriefView:'bars'}}))
     localStorage.setItem(PERFORMANCE_KEY, JSON.stringify({schemaVersion:1,enabled:true,priorities:['SalahTracker']}))
     localStorage.setItem(SETTINGS_SECTIONS_KEY, JSON.stringify({preferences:false,calendar:false}))
     localStorage.setItem(SALAH_SAVED_SEARCHES_STORAGE_KEY, JSON.stringify({schemaVersion:1,searches:[{id:'private',name:'Notes',query:'(notes)&26y',scope:{kind:'absolute',from:'2026-01-01',to:'2026-10-05',includeBlankDates:false}}]}))
@@ -55,7 +55,7 @@ describe('v4 personal configuration backups', () => {
     const changed = vi.fn()
     window.addEventListener(APP_LAYOUT_EVENT,changed)
     expect(importBackup(backup)).toBe(9)
-    expect(loadAppLayout()).toMatchObject({enabled:true,navigation:['Quran','Iqama'],home:[],more:[]})
+    expect(loadAppLayout()).toMatchObject({enabled:true,navigation:['Quran','Iqama'],home:[],more:[],homeSections:{salahBrief:true,salahBriefView:'bars'}})
     expect(loadPerformancePreferences()).toMatchObject({enabled:true,priorities:['SalahTracker']})
     expect(localStorage.getItem('athan.quran.translation.v1')).toBe('en.asad')
     expect(localStorage.getItem('athan.quran.readAyahs.v1')).toBe('{"2":[1,2]}')

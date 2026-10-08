@@ -5,16 +5,18 @@ import SharedDefaultsPrompt from './components/SharedDefaultsPrompt'
 import ScreenBoundary, { ScreenLoading } from './components/ScreenBoundary'
 import { loadLanguage, t, type AppLanguage } from './lib/i18n'
 import { parseSharedDefaultsUrl, type SharedDefaults } from './lib/sharedDefaults'
-import type { Screen } from './types/nav'
+import type { NavigationIntent, Screen } from './types/nav'
 import { APP_LAYOUT_EVENT, loadAppLayout, navigationFeatures } from './lib/appLayout'
 import { loadPerformancePreferences } from './lib/performancePreferences'
 import { rootFeatureLabel, rootForScreen, type RootFeatureId } from './lib/rootFeatures'
 import { getLazyScreen, resetFeatureScreen, scheduleFeaturePreparation } from './lib/screenLoader'
 import { refreshAthanApp } from './lib/pwa'
+import { isNavigationIntent, isScreen } from './lib/navigationIntent'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('Home')
-  const [history, setHistory] = useState<Screen[]>([])
+  const [navigationIntent, setNavigationIntent] = useState<NavigationIntent>()
+  const [history, setHistory] = useState<{ screen: Screen; intent?: NavigationIntent }[]>([])
   const [trackerSelectedDate, setTrackerSelectedDate] = useState<string>()
   const [language, setLanguage] = useState<AppLanguage>(() => loadLanguage())
   const [layout, setLayout] = useState(loadAppLayout)
@@ -56,33 +58,39 @@ export default function App() {
 
   useEffect(() => {
     mainRef.current?.scrollTo?.({ top: 0 })
-    titleRef.current?.focus({ preventScroll: true })
-  }, [screen])
+    if (screen !== 'FeatureSearch' && !sharedDefaults) titleRef.current?.focus({ preventScroll: true })
+  }, [screen, sharedDefaults])
 
   const isPrimary = (s: Screen) => (primaryTabs as readonly string[]).includes(s)
 
   const goTab = (t: RootFeatureId) => {
+    setNavigationIntent(undefined)
     setScreen(t)
     setHistory([])
   }
 
   const go = (s: string) => {
-    const target = (s === 'Help' ? 'NeedHelp' : s) as Screen
+    const target = s === 'Help' ? 'NeedHelp' : s
+    if (!isScreen(target)) return
     if (target === screen) return
-    if (history.at(-1) === target) {
+    if (history.at(-1)?.screen === target) {
+      setNavigationIntent(history.at(-1)?.intent)
       setHistory((current) => current.slice(0, -1))
       setScreen(target)
       return
     }
-    setHistory((current) => [...current, screen])
+    setNavigationIntent(s === 'PrayerMonth' ? { screen: 'Prayer', view: 'month' } : undefined)
+    setHistory((current) => [...current, { screen, intent: navigationIntent }])
     setScreen(target)
   }
 
   const goBack = () => {
+    setNavigationIntent(undefined)
     const previous = history.at(-1)
     if (previous) {
+      setNavigationIntent(previous.intent)
       setHistory((current) => current.slice(0, -1))
-      setScreen(previous)
+      setScreen(previous.screen)
       return
     }
     goTab('Home')
@@ -91,6 +99,12 @@ export default function App() {
   const openTrackerDay = (date: string) => {
     setTrackerSelectedDate(date)
     go('SalahTracker')
+  }
+
+  const navigate = (intent: NavigationIntent) => {
+    if (!isNavigationIntent(intent)) return
+    go(intent.screen)
+    setNavigationIntent(intent)
   }
 
   const screenLabels: Record<Screen, string> = {
@@ -119,7 +133,8 @@ export default function App() {
     SavedCities: t('savedCities', language),
     Onboarding: t('onboarding', language),
     FeatureHub: 'Feature Hub',
-    AppLayout: 'Performance & App Layout'
+    AppLayout: 'Performance & App Layout',
+    FeatureSearch: 'Search app'
   }
 
   const title = screenLabels[screen]
@@ -138,8 +153,8 @@ export default function App() {
   return (
     <div className="flex flex-col h-full">
       {/* Header with optional Back on secondary screens */}
-      <header className="p-4 bg-gray-800 flex items-center justify-between">
-        {!isPrimary(screen) ? (
+      <header className="p-4 bg-gray-800 flex items-center justify-between" style={screen === 'Home' ? { direction: 'ltr' } : undefined}>
+        {screen === 'Home' ? <button type="button" aria-label="Search app" className="flex h-11 w-16 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:text-teal-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300" onClick={() => go('FeatureSearch')}><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg></button> : !isPrimary(screen) ? (
           <button
             className="min-h-10 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-gray-200 hover:border-teal-600"
             onClick={goBack}
@@ -147,15 +162,15 @@ export default function App() {
             ← {t('back', language)}
           </button>
         ) : <span className="w-[64px]" />}
-        <h1 ref={titleRef} tabIndex={-1} className="text-xl font-bold text-center flex-1 outline-none">{title}</h1>
-        <span className="w-[64px]" />
+        <h1 ref={titleRef} tabIndex={-1} dir={language === 'ar' ? 'rtl' : 'ltr'} className="text-xl font-bold text-center flex-1 outline-none">{title}</h1>
+        {screen === 'Home' ? <button type="button" aria-label="Feature Hub" className="flex h-11 w-16 shrink-0 items-center justify-center rounded-lg text-gray-300 hover:text-teal-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300" onClick={() => go('FeatureHub')}><NavIcon tab="FeatureHub" /></button> : <span className="w-[64px]" />}
       </header>
 
       {/* Main content */}
       <main ref={mainRef} className="flex-1 overflow-auto p-4">
         <ScreenBoundary resetKey={screen + ':' + retry} onRetry={retryScreen} onHome={() => goTab('Home')} onSettings={() => go('Settings')} onFeatureHub={() => go('FeatureHub')} onReloadApp={reloadApp} recoveryMessage={recoveryMessage}>
           <Suspense fallback={<ScreenLoading />}>
-            <FeatureScreen go={go} initialDate={trackerSelectedDate} onOpenDay={openTrackerDay} />
+            <FeatureScreen go={go} initialDate={trackerSelectedDate} onOpenDay={openTrackerDay} navigationIntent={navigationIntent} onNavigate={navigate} onNavigationHandled={() => setNavigationIntent(undefined)} />
           </Suspense>
         </ScreenBoundary>
       </main>

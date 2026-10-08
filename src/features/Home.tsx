@@ -1,18 +1,19 @@
 // src/features/Home.tsx
 import { useEffect, useState } from 'react'
-import type { Screen } from '../types/nav'
+import type { NavigationIntent, Screen } from '../types/nav'
 import { formatHijri } from '../lib/hijri'
 import { loadLanguage, type AppLanguage } from '../lib/i18n'
-import { APP_LAYOUT_EVENT, effectiveLayout, loadAppLayout, navigationFeatures } from '../lib/appLayout'
+import { APP_LAYOUT_EVENT, effectiveLayout, loadAppLayout } from '../lib/appLayout'
 import { rootFeatureLabel } from '../lib/rootFeatures'
 import { formatPrimaryPrayerTime, getPrimaryPrayerContext, loadPrimarySavedCity, primaryTimeViewLabel, sourceDateKey } from '../lib/primaryPrayerSource'
 import { getRamadanDay, getRamadanStatus, loadRamadanSettings } from '../lib/ramadan'
 import { loadSavedCityTimeView, type SavedCityTimeView } from '../lib/preferences'
 import { getPrayerProgress, getPrayerWindow, type PrayerWindow } from '../lib/prayerWindow'
 import { dateKeyAnchor, sourceWeekday } from '../lib/sourceTime'
+import SalahBriefSlot from '../components/SalahBriefSlot'
 
 
-export default function Home({ go }: { go: (tab: Screen) => void }) {
+export default function Home({ go, onNavigate }: { go: (tab: Screen) => void; onNavigate?: (intent: NavigationIntent) => void }) {
   const [language] = useState<AppLanguage>(() => loadLanguage())
   const [layout, setLayout] = useState(loadAppLayout)
   const shortcuts = effectiveLayout(layout).home
@@ -102,14 +103,8 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
 
   return (
     <div className="space-y-6">
-      {layout.enabled && (
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={() => go('FeatureHub')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">Feature Hub</button>
-          {!navigationFeatures(layout).includes('Settings') && <button type="button" onClick={() => go('Settings')} className="min-h-11 rounded-md border border-gray-700 px-3 text-sm text-teal-200">{rootFeatureLabel('Settings', language)}</button>}
-        </div>
-      )}
       <div className="text-center">
-        <p className="text-sm text-gray-300">{hijri}</p>
+        <p className="text-xl font-bold leading-snug text-gray-100 sm:text-2xl">{hijri}</p>
         {prayerSchedule && <p className="mt-1 text-xs text-gray-500">{prayerSchedule.savedCity ? 'Saved city date' : 'Prayer source date'}: {prayerSchedule.dateKey}</p>}
         {isFriday && (
           <p className="mt-2 rounded-lg border border-teal-700 bg-teal-950/40 px-3 py-2 text-sm font-semibold text-teal-200">
@@ -142,6 +137,10 @@ export default function Home({ go }: { go: (tab: Screen) => void }) {
           />
         </div>
       </section>
+
+      {layout.enabled && layout.homeSections?.salahBrief && (
+        <SalahBriefSlot onNavigate={onNavigate} view={layout.homeSections.salahBriefView} />
+      )}
 
       {ramadanDay && !layout.enabled && (
         <button

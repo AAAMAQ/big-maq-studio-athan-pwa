@@ -48,11 +48,15 @@ export default function Privacy({ go, backTarget = 'Credits' }: Props) {
         <p className="text-sm leading-6 text-gray-300">
           When you choose Share Your Defaults, Athan PWA creates a consent-based link from a strict allowlist:
           prayer calculation choices, language, time format, optional Sunnahs visibility, and reminder defaults.
+          Custom layout is included only when you explicitly select it: enabled state, shortcut order, and Salah Brief visibility/chart choice.
         </p>
         <p className="text-sm leading-6 text-gray-300">
           The link never includes Salah or Ramadan tracker records, Quran progress or bookmarks, coordinates,
           saved cities, mosque profiles, or other personal activity. The recipient sees the included defaults and
-          must approve them before they are applied.
+          must approve them before they are applied. Applying a shared layout requires a separate choice; opening
+          the link changes nothing. Layout links do not include graph values, notes, saved/recent searches, tracker
+          reminder preferences, Performance Mode/priorities, or Settings expansion choices. Salah Brief always uses
+          the recipient&apos;s own local records.
         </p>
       </section>
 

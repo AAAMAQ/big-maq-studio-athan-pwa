@@ -1,5 +1,21 @@
 [
   {
+    "id": "2026-10-08-v4-0-1-navigation-streaks",
+    "date": "2026-10-08",
+    "version": "v4.0.1",
+    "title": "Clearer Navigation & Salah Streaks",
+    "summary": [
+      "Moved protected Home navigation into a compact header: Search app on the left, Home centered, and a four-square Feature Hub on the right. Promoted the date without changing the prayer preview, source or timezone. Feature Hub now contains navigation buttons only; Settings remains permanently accessible there instead of an automatic standalone Home fallback.",
+      "Added local predictive destination search for root features, child screens, the monthly timetable and Quran reader destinations. Hidden features remain searchable; typing searches lightweight labels rather than prayer history, notes, Quran content or online services.",
+      "Added verified all-five-prayer consecutive-day runs. streak:5 matches an exact maximal five-day run; streak:5+ matches five or more; streak:max includes tied longest runs intersecting the selected scope. Missing, missed and unlogged days break runs. Selected-period analytics show clipped streak lengths and date ranges without changing existing per-prayer statistics or star denominators.",
+      "Added optional Salah Brief below Home's current-prayer card through Custom Layout, hidden by default. When enabled it defaults to a daily trend line for this week, with a switch to per-prayer bars in the Brief and layout draft. Charts reuse Tracker's logged-only rates and coverage; empty days are gaps, not misses. The full weekly graphs use the same daily line. Recolored Salah calendar stars to match the teal palette and made progress-search syntax help collapsible.",
+      "Added explicit custom-layout inclusion to Share Your Defaults, with a separate recipient choice and preview. Only validated arrangement, Salah Brief visibility and line/bar chart choice are shared; never tracker records, notes, graph values, saved searches, tracker-review preferences, performance priorities or profiles. Older ordinary links remain supported. Personal backups include visibility and chart preferences.",
+      "Promoted Need Help to a main feature in Feature Hub, destination search, custom shortcuts and feature priorities while keeping the default layout unchanged. Replaced the outdated guide with searchable, expandable current topics, practical instructions, 30 validated Salah-query examples and safe troubleshooting. Preserved the entire user-pasted old guide unchanged in a separate Markdown archive, and retained existing help links and Qibla diagnostics without requesting new permissions.",
+      "Expanded Need Help with the missing Android/iPhone installation details, regional method reference table, Asr shadow and high-latitude explanations, the complete timetable conversion prompt, Quran translations/reading/bookmark controls, Qibla orientation/haptics/troubleshooting, external-service privacy context and phone-alarm alternatives. Restored the welcome, Friday context, dua, thanks and birthday/shoe-size privacy touch; corrected outdated claims instead of reviving nonexistent controls. Kept the current Markdown guide synchronized and the original archive unchanged.",
+      "Kept the app's existing visual style and optional loading policies, updated README and in-app guidance, and preserved standalone Iqama, canonical calendar exports, Quran progress/offline text and Qibla behavior."
+    ]
+  },
+  {
     "id": "2026-10-05-v4-0-0-your-app-your-flow",
     "date": "2026-10-05",
     "version": "v4.0.0",

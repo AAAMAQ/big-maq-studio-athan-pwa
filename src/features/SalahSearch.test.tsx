@@ -12,6 +12,33 @@ beforeEach(() => {
 afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('Salah query definitions and live summaries', () => {
+  it('discloses help without resetting query, range, unsaved name or results', () => {
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    const query = screen.getByRole('searchbox')
+    fireEvent.change(query, { target: { value: 'fajr' } })
+    fireEvent.change(screen.getByLabelText('Name this search'), { target: { value: 'Keep my draft' } })
+    fireEvent.click(screen.getByLabelText('Restrict search to a fixed date range'))
+    const help = screen.getByRole('button', { name: /Help with search strings/ })
+    expect(help.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('button', { name: /Exactly five consecutive/ })).toBeNull()
+    fireEvent.click(help)
+    expect(help.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: /Exactly five consecutive/ })).toBeTruthy()
+    fireEvent.click(help)
+    expect((query as HTMLInputElement).value).toBe('fajr')
+    expect((screen.getByLabelText('Name this search') as HTMLInputElement).value).toBe('Keep my draft')
+    expect((screen.getByLabelText('From') as HTMLInputElement).value).toBe('2026-10-01')
+    expect(screen.getByRole('heading', { name: '1 matching day' })).toBeTruthy()
+    expect(document.getElementById(query.getAttribute('aria-describedby')!)).toBeTruthy()
+  })
+  it('shows full-run dates on a streak search day card', () => {
+    const full = { Fajr: true, Dhuhr: true, Asr: true, Maghrib: true, Isha: true }
+    localStorage.setItem(SALAH_LOG_STORAGE_KEY, JSON.stringify({ '2026-10-03': full, '2026-10-04': full, '2026-10-05': full }))
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'streak:3&Oct.5' } })
+    expect(screen.getByRole('heading', { name: '1 matching day' })).toBeTruthy()
+    expect(screen.getByText(/All-five streak: 3 days · 2026-10-03–2026-10-05/)).toBeTruthy()
+  })
   it('saves, opens, renames and removes a query without copying records', () => {
     render(<SalahSearch onOpenDay={vi.fn()} />)
     const query = screen.getByRole('searchbox')

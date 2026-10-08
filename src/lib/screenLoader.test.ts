@@ -63,6 +63,14 @@ describe('feature imports', () => {
     const performance = { ...normal, enabled: true, priorities: ['SalahTracker' as const] }
     expect(preparationScreens(defaultAppLayout(), performance)).toEqual(['Home', 'SalahTracker', 'SalahInsights', 'SalahSearch', 'SalahGraphs'])
   })
+  it('treats Need Help as independent from Credits for optional preparation', () => {
+    const helpOnly = { ...normal, enabled: true, priorities: ['NeedHelp' as const] }
+    expect(preparationScreens(defaultAppLayout(), helpOnly)).toEqual(['Home', 'NeedHelp'])
+    const creditsOnly = { ...normal, enabled: true, priorities: ['Credits' as const] }
+    expect(preparationScreens(defaultAppLayout(), creditsOnly)).not.toContain('NeedHelp')
+    const layout = { ...defaultAppLayout(), enabled: true, navigation: ['NeedHelp' as const], home: [], more: [] }
+    expect(preparationScreens(layout, normal)).toContain('NeedHelp')
+  })
 
   it('combined policy can prepare a hidden explicitly-prioritized root without mounting it', () => {
     const layout = { ...defaultAppLayout(), enabled: true, navigation: [], home: [], more: [] }

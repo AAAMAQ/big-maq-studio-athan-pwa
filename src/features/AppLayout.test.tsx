@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppLayout from './AppLayout'
 import FeatureHub from './FeatureHub'
@@ -10,13 +10,27 @@ beforeEach(() => localStorage.clear())
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Layout editor', () => {
+  it('previews and saves optional Salah Brief without copying tracker data', () => {
+    localStorage.setItem('salahLogV1', 'private fixture')
+    render(<AppLayout />)
+    fireEvent.click(screen.getByRole('checkbox', { name: /Show Salah Brief/ }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Salah Brief chart' }), { target: { value: 'bars' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Custom Layout when saved' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Preview layout' }))
+    expect(screen.getByText(/Salah Brief — this week's tracker graphs/)).toBeVisible()
+    expect(loadAppLayout().homeSections?.salahBrief).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Save layout' }))
+    expect(loadAppLayout().homeSections?.salahBrief).toBe(true)
+    expect(loadAppLayout().homeSections?.salahBriefView).toBe('bars')
+    expect(localStorage.getItem('salahLogV1')).toBe('private fixture')
+  })
   it('previews drafts without writes, then cancel leaves saved preferences unchanged', () => {
     const go = vi.fn()
     render(<AppLayout go={go} />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Custom Layout when saved' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove Settings from Navigation hub' }))
     fireEvent.click(screen.getByRole('button', { name: 'Preview layout' }))
-    expect(screen.getByText('Home top right: Settings')).toBeInTheDocument()
+    expect(screen.getByText(/Settings remains inside Feature Hub/)).toBeInTheDocument()
     expect(localStorage.getItem(APP_LAYOUT_KEY)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel layout edits' }))
     expect(loadAppLayout()).toEqual(defaultAppLayout())
@@ -73,17 +87,15 @@ describe('Layout editor', () => {
 })
 
 describe('Feature Hub and More', () => {
-  it('opens hidden roots and restores shortcuts without modifying feature records', () => {
+  it('opens hidden roots without editing layouts or feature records', () => {
     saveAppLayout({ ...defaultAppLayout(), enabled: true, navigation: [], home: [], more: [] })
     localStorage.setItem('iqamaRules', 'saved fixture')
     const go = vi.fn()
     render(<FeatureHub go={go} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Open Iqama Times' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Iqama Times' }))
     expect(go).toHaveBeenCalledWith('Iqama')
-    const card = screen.getByRole('heading', { name: 'Iqama Times' }).closest('section')!
-    expect(within(card).getByText('Hidden from shortcuts · opens on demand')).toBeInTheDocument()
-    fireEvent.click(within(card).getByRole('button', { name: 'Add to Home' }))
-    expect(loadAppLayout().home).toEqual(['Iqama'])
+    expect(screen.queryByRole('button', { name: 'Add to Home' })).toBeNull()
+    expect(loadAppLayout().home).toEqual([])
     expect(localStorage.getItem('iqamaRules')).toBe('saved fixture')
   })
 
