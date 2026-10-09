@@ -1,5 +1,6 @@
 import { APP_LAYOUT_EVENT, APP_LAYOUT_KEY, SETTINGS_SECTIONS_KEY, normalizeAppLayout, normalizeSettingsSections } from './appLayout'
 import { PERFORMANCE_KEY, normalizePerformancePreferences } from './performancePreferences'
+import { QIBLA_AUTO_LOCATION_KEY, QIBLA_PREFERENCES_EVENT } from './qiblaPreferences'
 import { SALAH_SEARCHES_CHANGE_EVENT, SALAH_SAVED_SEARCHES_STORAGE_KEY, SALAH_RECENT_SEARCHES_STORAGE_KEY, normalizeSavedSalahSearches, normalizeRecentSalahSearches } from './salahSavedSearches'
 
 export type AthanBackup = {
@@ -15,6 +16,7 @@ export const ATHAN_LOCAL_STORAGE_KEYS = [
   APP_LAYOUT_KEY,
   SETTINGS_SECTIONS_KEY,
   PERFORMANCE_KEY,
+  QIBLA_AUTO_LOCATION_KEY,
   SALAH_SAVED_SEARCHES_STORAGE_KEY,
   SALAH_RECENT_SEARCHES_STORAGE_KEY,
   'athan.prayer.calculationMode.v1',
@@ -118,6 +120,7 @@ export function resetAthanAppData(): number {
 }
 
 function normalizeImportedValue(key: string, raw: string): string | null {
+  if (key === QIBLA_AUTO_LOCATION_KEY) return raw === 'true' || raw === 'false' ? raw : null
   const normalizers: Record<string, (value: unknown) => unknown> = {
     [APP_LAYOUT_KEY]: normalizeAppLayout,
     [SETTINGS_SECTIONS_KEY]: normalizeSettingsSections,
@@ -165,7 +168,7 @@ function applyChanges(changes: [string, string | null][]) {
 }
 
 function notifyRestoredData() {
-  for (const event of [APP_LAYOUT_EVENT, SALAH_SEARCHES_CHANGE_EVENT, 'athan-salah-data-change', 'athan-language-change', 'athan-preferences-change', 'athan-primary-source-change']) window.dispatchEvent(new Event(event))
+  for (const event of [APP_LAYOUT_EVENT, QIBLA_PREFERENCES_EVENT, SALAH_SEARCHES_CHANGE_EVENT, 'athan-salah-data-change', 'athan-language-change', 'athan-preferences-change', 'athan-primary-source-change']) window.dispatchEvent(new Event(event))
 }
 
 function isAthanBackup(value: unknown): value is AthanBackup {

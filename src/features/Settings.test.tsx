@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Settings from './Settings'
 import { loadAppLayout } from '../lib/appLayout'
 import { loadPerformancePreferences } from '../lib/performancePreferences'
+import { QIBLA_AUTO_LOCATION_KEY, loadAutomaticQiblaLocation } from '../lib/qiblaPreferences'
 
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), build: vi.fn(), download: vi.fn() }))
 vi.mock('../components/PwaStatus', () => ({ default: () => <div>PWA fixture</div> }))
@@ -12,9 +13,33 @@ vi.mock('../lib/settingsRichCalendar', () => ({ buildSettingsRichCalendar: mocks
 vi.mock('../lib/primaryPrayerSource', () => ({ resolvePrimaryPrayerSource: mocks.resolve, sourceDateKey: () => '2026-10-05', prayerTimesForPrimarySourceDate: () => ({}) }))
 
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); mocks.build.mockReturnValue('BEGIN:VCALENDAR') })
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Settings integration', () => {
+  it('offers automatic location as private opt-in and keeps Sunnah display outside Preferences', async () => {
+    localStorage.setItem('athan.preference.showSunnah.v1', 'true')
+    localStorage.setItem('athan.travel.currentCityId.v1', 'saved-city-fixture')
+    await act(async () => { render(<Settings />) })
+    const automaticLocation = screen.getByRole('checkbox', { name: /Prepare device location for Qibla/ })
+    expect(automaticLocation).not.toBeChecked()
+    expect(screen.queryByRole('checkbox', { name: /Show Sunnahs/ })).not.toBeInTheDocument()
+    fireEvent.click(automaticLocation)
+    expect(loadAutomaticQiblaLocation()).toBe(true)
+    expect(localStorage.getItem('athan.travel.currentCityId.v1')).toBe('saved-city-fixture')
+    expect(localStorage.getItem('athan.preference.showSunnah.v1')).toBe('true')
+    fireEvent.click(automaticLocation)
+    expect(localStorage.getItem(QIBLA_AUTO_LOCATION_KEY)).toBe('false')
+  })
+
+  it('keeps automatic location off when preference saving fails', async () => {
+    await act(async () => { render(<Settings />) })
+    const automaticLocation = screen.getByRole('checkbox', { name: /Prepare device location for Qibla/ })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full') })
+    fireEvent.click(automaticLocation)
+    expect(automaticLocation).not.toBeChecked()
+    expect(screen.getByRole('status')).toHaveTextContent('Automatic location preference could not be saved')
+  })
+
   it('keeps a calendar export and its selected offset intact while collapsed', async () => {
     let resolve: (value: unknown) => void = () => undefined
     mocks.resolve.mockImplementation(() => new Promise((finish) => { resolve = finish }))

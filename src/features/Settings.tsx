@@ -3,6 +3,7 @@ import PwaStatus from '../components/PwaStatus'
 import SettingsSection from '../components/SettingsSection'
 import { APP_LAYOUT_EVENT, loadAppLayout, saveAppLayout } from '../lib/appLayout'
 import { loadPerformancePreferences, savePerformancePreferences } from '../lib/performancePreferences'
+import { loadAutomaticQiblaLocation, saveAutomaticQiblaLocation, QIBLA_PREFERENCES_EVENT } from '../lib/qiblaPreferences'
 import {
   COUNTRY_PRAYER_CONFIGS,
   detectCountryCode,
@@ -25,11 +26,9 @@ import {
   type PrayerSettings
 } from '../lib/prayer'
 import {
-  loadShowSunnah,
   loadSavedCityTimeView,
   loadTimeFormatPreference,
   saveSavedCityTimeView,
-  saveShowSunnah,
   saveTimeFormatPreference,
   type SavedCityTimeView,
   type TimeFormatPreference
@@ -191,7 +190,7 @@ export default function Settings({ go }: Props) {
   const [language, setLanguage] = useState<AppLanguage>(() => loadLanguage())
   const [timeFormat, setTimeFormat] = useState<TimeFormatPreference>(() => loadTimeFormatPreference())
   const [savedCityTimeView, setSavedCityTimeView] = useState<SavedCityTimeView>(loadSavedCityTimeView)
-  const [showSunnah, setShowSunnah] = useState(() => loadShowSunnah())
+  const [automaticQiblaLocation, setAutomaticQiblaLocation] = useState(loadAutomaticQiblaLocation)
   const [savedCities] = useState(loadSavedCities)
   const [homeCityId, setHomeCityId] = useState(loadTravelDestinationId)
   const [offsetMin, setOffsetMin] = useState(() => {
@@ -208,10 +207,11 @@ export default function Settings({ go }: Props) {
   const [layout, setLayout] = useState(loadAppLayout)
   const [performance, setPerformance] = useState(loadPerformancePreferences)
   useEffect(() => {
-    const refresh = () => { setLayout(loadAppLayout()); setPerformance(loadPerformancePreferences()) }
+    const refresh = () => { setLayout(loadAppLayout()); setPerformance(loadPerformancePreferences()); setAutomaticQiblaLocation(loadAutomaticQiblaLocation()) }
     window.addEventListener(APP_LAYOUT_EVENT, refresh)
+    window.addEventListener(QIBLA_PREFERENCES_EVENT, refresh)
     window.addEventListener('storage', refresh)
-    return () => { window.removeEventListener(APP_LAYOUT_EVENT, refresh); window.removeEventListener('storage', refresh) }
+    return () => { window.removeEventListener(APP_LAYOUT_EVENT, refresh); window.removeEventListener(QIBLA_PREFERENCES_EVENT, refresh); window.removeEventListener('storage', refresh) }
   }, [])
 
   const autoConfig = getCountryPrayerConfig(countryCode)
@@ -321,10 +321,13 @@ export default function Settings({ go }: Props) {
     setMessage(t('timeFormatSaved', language))
   }
 
-  function updateShowSunnah(value: boolean) {
-    setShowSunnah(value)
-    saveShowSunnah(value)
-    setMessage(t('sunnahPreferenceSaved', language))
+  function updateAutomaticQiblaLocation(value: boolean) {
+    if (saveAutomaticQiblaLocation(value)) {
+      setAutomaticQiblaLocation(value)
+      setMessage(language === 'ar' ? 'تم حفظ تفضيل الموقع التلقائي.' : 'Automatic location preference saved.')
+    } else {
+      setMessage(language === 'ar' ? 'تعذر حفظ تفضيل الموقع. حاول مرة أخرى.' : 'Automatic location preference could not be saved. Try again.')
+    }
   }
 
   function updateHomePrayerSource(cityId: string) {
@@ -448,13 +451,13 @@ export default function Settings({ go }: Props) {
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-md border border-gray-700 bg-gray-950/60 p-3">
           <input
             type="checkbox"
-            checked={showSunnah}
-            onChange={(event) => updateShowSunnah(event.target.checked)}
+            checked={automaticQiblaLocation}
+            onChange={(event) => updateAutomaticQiblaLocation(event.target.checked)}
             className="mt-0.5 h-4 w-4 accent-teal-500"
           />
           <span>
-            <span className="block text-sm font-medium text-gray-200">{t('showSunnah', language)}</span>
-            <span className="mt-1 block text-xs leading-5 text-gray-400">{t('showSunnahHelp', language)}</span>
+            <span className="block text-sm font-medium text-gray-200">{language === 'ar' ? 'تجهيز موقع الجهاز للقبلة عند فتح التطبيق' : 'Prepare device location for Qibla at app launch'}</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-400">{language === 'ar' ? 'اختياري. قد يطلب المتصفح إذن الموقع عند فتح التطبيق. يمكن للشاشات التي تحتاج الموقع إعادة استخدامه. لا يغيّر المدينة المحفوظة أو مصدر أوقات الصلاة ولا يشغّل تتبع GPS مستمرًا. إيقافه لا يلغي إذن المتصفح.' : 'Optional. Your browser may ask for location access when the app opens. Location-dependent screens can reuse this device location. It does not change your saved city or primary prayer source, or keep GPS tracking in the background. Turning it off does not revoke browser permission.'}</span>
           </span>
         </label>
       </SettingsSection>

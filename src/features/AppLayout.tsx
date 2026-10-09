@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { defaultAppLayout, loadAppLayout, saveAppLayout, type AppLayoutPreferences, type LayoutSurface } from '../lib/appLayout'
 import { loadPerformancePreferences, savePerformancePreferences } from '../lib/performancePreferences'
 import { ROOT_FEATURE_IDS, rootFeatureLabel, type RootFeatureId } from '../lib/rootFeatures'
-import { loadLanguage, type AppLanguage } from '../lib/i18n'
+import { loadLanguage, t, type AppLanguage } from '../lib/i18n'
+import { loadShowSunnah, saveShowSunnah } from '../lib/preferences'
 
 type Props = { go?: (screen: string) => void }
 const buttonClass = 'min-h-11 rounded-md border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-gray-200 hover:border-teal-600 disabled:opacity-40'
@@ -14,6 +15,16 @@ export default function AppLayout({ go }: Props) {
   const [performance, setPerformance] = useState(loadPerformancePreferences)
   const [preview, setPreview] = useState(false)
   const [message, setMessage] = useState('')
+  const [showSunnah, setShowSunnah] = useState(loadShowSunnah)
+  useEffect(() => {
+    const refresh = () => setShowSunnah(loadShowSunnah())
+    window.addEventListener('athan-preferences-change', refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('athan-preferences-change', refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
   const open = (screen: string) => go ? go(screen) : (window.location.hash = `#${screen}`)
   function updateList(surface: LayoutSurface, list: RootFeatureId[]) {
     setDraft((current) => ({ ...current, [surface]: list }))
@@ -26,6 +37,21 @@ export default function AppLayout({ go }: Props) {
   return (
     <div className="mx-auto max-w-3xl space-y-5 pb-6">
       <header><h1 className="text-2xl font-bold">Performance & App Layout</h1><p className="mt-2 text-sm text-gray-400">Arrange shortcuts without removing features or changing their data.</p></header>
+      <section className="space-y-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
+        <h2 className="font-semibold">{language === 'ar' ? 'عرض متتبع الصلاة' : 'Salah Tracker display'}</h2>
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" checked={showSunnah} onChange={(event) => {
+            const enabled = event.target.checked
+            saveShowSunnah(enabled)
+            const saved = loadShowSunnah()
+            setShowSunnah(saved)
+            setMessage(saved === enabled ? t('sunnahPreferenceSaved', language) : 'Tracker display preference could not be saved. Try again.')
+          }} className="h-5 w-5 accent-teal-600" />
+          {t('showSunnah', language)}
+        </label>
+        <p className="text-xs leading-5 text-gray-400">{t('showSunnahHelp', language)}</p>
+        <p className="text-xs leading-5 text-gray-400">{language === 'ar' ? 'يُحفظ هذا الخيار فورًا، حتى عند إيقاف التخطيط المخصص. لا يؤثر إلغاء تعديلات التخطيط عليه.' : 'Saved immediately, even when Custom Layout is off. Canceling layout edits does not undo this display preference.'}</p>
+      </section>
       <section className="space-y-4 rounded-lg border border-gray-700 bg-gray-800 p-4">
         <h2 className="font-semibold">Custom Layout</h2>
         <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft((current) => ({ ...current, enabled: event.target.checked }))} className="h-5 w-5 accent-teal-600" />Enable Custom Layout when saved</label>

@@ -1,5 +1,19 @@
 [
   {
+    "id": "2026-10-10-v4-0-3-qibla-prayer-streaks",
+    "date": "2026-10-10",
+    "version": "v4.0.3",
+    "title": "Faster Qibla & Prayer Streaks",
+    "summary": [
+      "Added optional Prepare device location for Qibla at app launch in Settings → Preferences, off by default. A one-shot physical location request can start before Qibla opens; concurrent location callers share one request, and a recently obtained physical fix can be reused for up to 60 seconds from its actual timestamp. Saved city/manual coordinates and old persisted caches are not treated as fresh Qibla fixes. This does not change the primary prayer source or run a background GPS watch at launch; an immediate tap can still precede a slow device fix.",
+      "Moved the iPhone motion/orientation request into the Qibla navigation tap, before lazy screen loading or waiting for location. A session-only broker carries the result to Qibla without a second popup request. Home, Feature Hub, predictive search, custom navigation and Back/retry paths share this behavior. Enable Compass remains a safe retry when permission is denied, a fresh gesture is required or no valid heading arrives; Safari/iOS owns whether its native popup appears. Permission is not saved as permanently granted, and leaving cleans up listeners.",
+      "Moved Show Sunnahs in Salah Tracker from Preferences to Performance & App Layout → Salah Tracker display. Its existing stored value and immediate-save behavior remain intact, independently of Custom Layout and its draft Save/Cancel controls. Sunnahs never affect obligatory totals, stars or streaks.",
+      "Added scoped streak queries: streak(1):max or streak(fajr):max for Fajr; streak(1,2):max for independent Fajr/Dhuhr maxima; streak(1&2):max for consecutive days with both completed. Exact :5 excludes longer runs, :5+ includes them, and tied maxima are retained. Missing, missed or unlogged selected prayers break the run; unselected prayers do not. Search shows labeled lengths and full dates instead of requiring users to count day cards. Existing all-five streak queries, date filters and saved searches remain compatible.",
+      "Updated Help, its current Markdown mirror, README and Credits with the new controls and queries. Explained why Safari’s dedicated compass heading cannot simply be assumed on Android, whose absolute-sensor/fallback path remains unchanged. Comparing calibrated devices, including an iPhone, can help diagnose problems but is not proof that Apple is always more accurate. Preserved the shared geographic Qibla calculation, magnetic/True North caveats and old Help archive.",
+      "Personal Backup & Restore includes the optional launch-location preference with strict validation and restore notifications. Share Your Defaults excludes it and all private tracker records/searches. No new dependencies, uploads, prayer calculations or Android sensor-math changes; standalone Iqama and calendar behavior remain unchanged. Physical phone permission and sensor behavior still require on-device verification."
+    ]
+  },
+  {
     "id": "2026-10-09-v4-0-2-qibla-refresh",
     "date": "2026-10-09",
     "version": "v4.0.2",

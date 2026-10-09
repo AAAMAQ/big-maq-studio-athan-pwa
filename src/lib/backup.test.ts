@@ -3,9 +3,46 @@ import { createBackup, importBackup, parseBackupJson, resetAthanAppData } from '
 import { APP_LAYOUT_EVENT, APP_LAYOUT_KEY, loadAppLayout, SETTINGS_SECTIONS_KEY } from './appLayout'
 import { PERFORMANCE_KEY, loadPerformancePreferences } from './performancePreferences'
 import { SALAH_SAVED_SEARCHES_STORAGE_KEY, SALAH_RECENT_SEARCHES_STORAGE_KEY, loadSavedSalahSearches } from './salahSavedSearches'
+import { QIBLA_AUTO_LOCATION_KEY, QIBLA_PREFERENCES_EVENT, loadAutomaticQiblaLocation } from './qiblaPreferences'
 
 describe('Backup and Restore Salah privacy data', () => {
   beforeEach(() => localStorage.clear())
+
+  it('round-trips automatic physical location opt-in and the existing Sunnah display key', () => {
+    localStorage.setItem(QIBLA_AUTO_LOCATION_KEY, 'true')
+    localStorage.setItem('athan.preference.showSunnah.v1', 'true')
+    const backup = createBackup()
+    expect(backup.localStorage[QIBLA_AUTO_LOCATION_KEY]).toBe('true')
+    localStorage.clear()
+    const changed = vi.fn()
+    window.addEventListener(QIBLA_PREFERENCES_EVENT, changed)
+    try {
+      expect(importBackup(backup)).toBe(2)
+      expect(loadAutomaticQiblaLocation()).toBe(true)
+      expect(localStorage.getItem('athan.preference.showSunnah.v1')).toBe('true')
+      expect(changed).toHaveBeenCalledOnce()
+      expect(resetAthanAppData()).toBe(2)
+      expect(loadAutomaticQiblaLocation()).toBe(false)
+    } finally {
+      window.removeEventListener(QIBLA_PREFERENCES_EVENT, changed)
+    }
+  })
+
+  it('does not invent location consent from old backups or malformed preferences', () => {
+    const backup = createBackup()
+    backup.localStorage = { method: 'Karachi' }
+    importBackup(backup)
+    expect(loadAutomaticQiblaLocation()).toBe(false)
+    localStorage.setItem(QIBLA_AUTO_LOCATION_KEY, 'true')
+    importBackup(backup)
+    expect(loadAutomaticQiblaLocation()).toBe(true)
+    backup.localStorage = { [QIBLA_AUTO_LOCATION_KEY]: '{"enabled":true}' }
+    expect(importBackup(backup)).toBe(0)
+    expect(loadAutomaticQiblaLocation()).toBe(true)
+    backup.localStorage = { [QIBLA_AUTO_LOCATION_KEY]: 'false' }
+    expect(importBackup(backup)).toBe(1)
+    expect(loadAutomaticQiblaLocation()).toBe(false)
+  })
 
   it('includes tracker notes and all Settings calendar reminder preferences in the local backup', () => {
     localStorage.setItem('salahLogV1', '{"2026-09-25":{"Fajr":true,"Dhuhr":false,"Notes":"Private daily note"}}')

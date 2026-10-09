@@ -1,20 +1,27 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import App from './App'
 import { defaultAppLayout, saveAppLayout } from './lib/appLayout'
 import type { NavigationIntent } from './types/nav'
 import { createSharedDefaultsUrl } from './lib/sharedDefaults'
+import { QIBLA_AUTO_LOCATION_KEY, saveAutomaticQiblaLocation } from './lib/qiblaPreferences'
+import { clearQiblaNavigationCompassRequest, getQiblaNavigationCompassRequest } from './lib/qiblaCompassAccess'
 
-vi.mock('./features/Home', () => ({default: ({go}: {go:(screen:string)=>void}) => <button onClick={()=>go('More')}>Open More</button>}))
+const startup = vi.hoisted(() => ({ refresh: vi.fn(), recent: vi.fn(), request: vi.fn(), renderScreen: vi.fn() }))
+vi.mock('./lib/locationStore', () => ({ refreshDeviceLocation: startup.refresh, getRecentDeviceLocation: startup.recent }))
+
+vi.mock('./features/Home', () => ({default: ({go}: {go:(screen:string)=>void}) => <><button onClick={()=>go('More')}>Open More</button><button onClick={()=>go('Qibla')}>Open Qibla shortcut</button></>}))
 vi.mock('./lib/screenLoader', () => ({
   scheduleFeaturePreparation: vi.fn(() => () => {}),
   resetFeatureScreen: vi.fn(),
-  getLazyScreen: (name:string) => ({go,onOpenDay,onNavigate,navigationIntent}: {go:(screen:string)=>void;onOpenDay:(date:string)=>void;onNavigate:(intent:NavigationIntent)=>void;navigationIntent?:NavigationIntent}) => <section aria-label={name}>
+  getLazyScreen: (name:string) => { startup.renderScreen(name); return ({go,onOpenDay,onNavigate,navigationIntent}: {go:(screen:string)=>void;onOpenDay:(date:string)=>void;onNavigate:(intent:NavigationIntent)=>void;navigationIntent?:NavigationIntent}) => <section aria-label={name}>
     <button onClick={()=>go('SalahSearch')}>Open search</button>
+    <button onClick={()=>go('Qibla')}>Open Qibla feature</button>
+    <button onClick={()=>onNavigate({screen:'Qibla'})}>Open Qibla result</button>
     <button onClick={()=>onOpenDay('2026-10-01')}>Open matching day</button>
     <button onClick={()=>onNavigate({screen:'Prayer',view:'month'})}>Open monthly destination</button>
     <output>{navigationIntent ? JSON.stringify(navigationIntent) : 'No intent'}</output>
-  </section>
+  </section> }
 }))
 
 describe('integrated navigation contracts', () => {
@@ -32,7 +39,16 @@ describe('integrated navigation contracts', () => {
     fireEvent.click(screen.getByRole('button',{name:'Feature Hub'}))
     expect(screen.getByRole('heading',{name:'Feature Hub'})).toBeVisible()
   })
-  beforeEach(()=>{localStorage.clear();window.history.replaceState(null,'','/')})
+  beforeEach(()=>{
+    localStorage.clear();window.history.replaceState(null,'','/')
+    vi.resetAllMocks()
+    startup.recent.mockReturnValue(null)
+    startup.refresh.mockResolvedValue({location:null,permission:'denied'})
+    startup.request.mockResolvedValue('granted')
+    clearQiblaNavigationCompassRequest(getQiblaNavigationCompassRequest())
+    vi.stubGlobal('DeviceOrientationEvent', { requestPermission: startup.request })
+  })
+  afterEach(()=>vi.unstubAllGlobals())
   it('does not steal focus from a shared-defaults consent dialog', () => {
     window.history.replaceState(null,'',createSharedDefaultsUrl(window.location.href))
     render(<App />)
@@ -71,5 +87,60 @@ describe('integrated navigation contracts', () => {
     expect(within(screen.getByRole('navigation')).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(within(screen.getByRole('navigation')).getByRole('button',{name:'Home'}))
     expect(screen.getByRole('heading',{level:1,name:'Home'})).toBeVisible()
+  })
+  it('does not prepare location at launch until opted in, then starts one strict request', async ()=>{
+    const view = render(<App />)
+    expect(startup.refresh).not.toHaveBeenCalled()
+    act(()=>{ saveAutomaticQiblaLocation(true) })
+    expect(startup.refresh).toHaveBeenCalledWith({allowCachedFallback:false})
+    act(()=>{ window.dispatchEvent(new Event('storage')) })
+    expect(startup.refresh).toHaveBeenCalledOnce()
+    await act(async()=>{})
+    view.unmount()
+  })
+  it('prepares on opted-in launch without changing layout or prayer source, and reuses a ready fix', async ()=>{
+    localStorage.setItem(QIBLA_AUTO_LOCATION_KEY,'true')
+    const view=render(<App />)
+    expect(startup.refresh).toHaveBeenCalledOnce()
+    expect(within(screen.getByRole('navigation')).getAllByRole('button').map(button=>button.textContent)).toEqual(['Home','Prayer','Settings'])
+    await act(async()=>{})
+    view.unmount()
+    startup.refresh.mockClear()
+    startup.recent.mockReturnValue({latitude:31,longitude:121,source:'device'})
+    render(<App />)
+    expect(startup.refresh).not.toHaveBeenCalled()
+  })
+  it('requests motion synchronously on a Home Qibla tap before resolving/loading the screen', async ()=>{
+    const order:string[]=[]
+    startup.request.mockImplementation(()=>{order.push('permission');return Promise.resolve('granted')})
+    startup.renderScreen.mockImplementation(name=>{if(name==='Qibla')order.push('screen')})
+    render(<App />)
+    fireEvent.click(screen.getByRole('button',{name:'Open Qibla shortcut'}))
+    expect(order[0]).toBe('permission')
+    expect(order).toContain('screen')
+    expect(startup.request).toHaveBeenCalledOnce()
+    expect(await getQiblaNavigationCompassRequest()!.result).toBe('granted')
+  })
+  it('prepares permission for Hub, search, custom navigation and Back to Qibla', async ()=>{
+    saveAppLayout({...defaultAppLayout(),enabled:true,navigation:['Qibla']})
+    render(<App />)
+    const home=()=>fireEvent.click(within(screen.getByRole('navigation')).getByRole('button',{name:'Home'}))
+    fireEvent.click(screen.getByRole('button',{name:'Feature Hub'}))
+    fireEvent.click(screen.getByRole('button',{name:'Open Qibla feature'}))
+    await act(async()=>{})
+    expect(startup.request).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button',{name:'Open search'}))
+    fireEvent.click(screen.getByRole('button',{name:'← Back'}))
+    await act(async()=>{})
+    expect(startup.request).toHaveBeenCalledTimes(2)
+    home()
+    fireEvent.click(screen.getByRole('button',{name:'Search app'}))
+    fireEvent.click(screen.getByRole('button',{name:'Open Qibla result'}))
+    await act(async()=>{})
+    expect(startup.request).toHaveBeenCalledTimes(3)
+    home()
+    fireEvent.click(within(screen.getByRole('navigation')).getByRole('button',{name:'Qibla'}))
+    await act(async()=>{})
+    expect(startup.request).toHaveBeenCalledTimes(4)
   })
 })

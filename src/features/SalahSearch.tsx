@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { deriveSalahStreakRuns, indexSalahStreakRuns, getSalahStatus, parseSalahDate, SALAH_PRAYERS } from '../lib/salahInsights'
-import { explainSalahSearch, parseSalahSearch, searchSalahDays, summarizeSalahSearchResults } from '../lib/salahSearch'
+import { explainSalahSearch, parseSalahSearch, searchSalahDaysWithStreaks, summarizeSalahSearchResults, type SalahSearchStreakSummary } from '../lib/salahSearch'
 import { SALAH_DATA_CHANGE_EVENT } from '../lib/salahStore'
+import { findSalahStreakRun } from '../lib/salahStreaks'
 import { useSalahData } from '../lib/useSalahData'
 import { describeSalahSearchScope, loadRecentSalahSearches, loadSavedSalahSearches, MAX_SAVED_SALAH_SEARCHES, normalizeRecentSalahSearches, normalizeSalahSearchScope, SALAH_SEARCHES_CHANGE_EVENT, saveRecentSalahSearches, saveSavedSalahSearches, type SavedSalahSearch, type SalahSearchScope } from '../lib/salahSavedSearches'
 
@@ -23,7 +24,10 @@ const EXAMPLES = [
   { query: '(last30days)&fajr', meaning: 'Fajr completed in the last 30 days' },
   { query: 'streak:5', meaning: 'Exactly five consecutive all-five days' },
   { query: 'streak:5+', meaning: 'Five or more consecutive all-five days' },
-  { query: '(streak:max)&(notes)', meaning: 'Notes within the longest run(s)' }
+  { query: '(streak:max)&(notes)', meaning: 'Notes within the longest run(s)' },
+  { query: 'streak(1):max', meaning: 'Longest Fajr streak(s)' },
+  { query: 'streak(1,2):max', meaning: 'Independent longest Fajr and Dhuhr streaks' },
+  { query: 'streak(1&2):5', meaning: 'Exactly five days with both Fajr and Dhuhr completed' }
 ]
 
 export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) => void }) {
@@ -41,13 +45,13 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
   const [range, setRange] = useState({ from: `${todayKey.slice(0, 7)}-01`, to: todayKey })
   const runs = useMemo(() => deriveSalahStreakRuns(store, parseSalahDate(todayKey)!), [store, todayKey])
   const outcome = useMemo(() => {
-    if (!query.trim()) return { dates: [] as string[], meaning: '', error: '' }
+    if (!query.trim()) return { dates: [] as string[], streaks: [] as SalahSearchStreakSummary[], meaning: '', error: '' }
     try {
       if (useDateRange && range.to > todayKey) throw new Error('Choose a fixed date range ending no later than today.')
       const node = parseSalahSearch(query)
-      return { dates: searchSalahDays(store, node, useDateRange ? { ...range, includeBlankDates } : undefined, parseSalahDate(todayKey)!, runs), meaning: explainSalahSearch(node), error: '' }
+      return { ...searchSalahDaysWithStreaks(store, node, useDateRange ? { ...range, includeBlankDates } : undefined, parseSalahDate(todayKey)!, runs), meaning: explainSalahSearch(node), error: '' }
     }
-    catch (error) { return { dates: [] as string[], meaning: '', error: error instanceof Error ? error.message : 'Check the search string.' } }
+    catch (error) { return { dates: [] as string[], streaks: [] as SalahSearchStreakSummary[], meaning: '', error: error instanceof Error ? error.message : 'Check the search string.' } }
   }, [store, query, includeBlankDates, range, useDateRange, todayKey, runs])
   const summary = useMemo(() => summarizeSalahSearchResults(store, outcome.dates), [store, outcome.dates])
   const runByDate = useMemo(() => indexSalahStreakRuns(runs), [runs])
@@ -104,6 +108,7 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
           {EXAMPLES.map((example) => <button key={example.query} type="button" onClick={() => chooseQuery(example.query)} className="max-w-full break-words rounded border border-gray-700 bg-gray-900 px-2 py-1 text-left text-xs text-teal-300 hover:border-teal-500"><span className="block font-semibold">{example.query}</span><span className="block text-gray-400">{example.meaning}</span></button>)}
         </div>
         <p className="text-xs leading-5 text-gray-400">streak:5 matches full runs of exactly five all-five completed days; streak:5+ means at least five. streak:max includes tied longest full runs intersecting your fixed scope, before notes, weekday or date-query filters. Query date terms restrict displayed days but never shorten a verified run. For the longest intersecting October, select October as the fixed range. Future or missing/unlogged days cannot create a streak.</p>
+        <p className="text-xs leading-5 text-gray-400">Choose prayers with streak(1):max or streak(fajr):max. streak(1,2):max searches each prayer independently and reports separate Fajr and Dhuhr runs; streak(1&amp;2):max requires both completed on every day of the same run. streak(1&amp;2):5 means exactly five days, not a five-day window within a longer run; add + for at least five. Other prayers do not affect a scoped streak. Missed, not logged and absent days break it. Combine the whole streak term with dates, notes or other filters using the usual parentheses and operators.</p>
         </div> : null}
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={useDateRange} onChange={(event) => { setUseDateRange(event.target.checked); setVisibleCount(60) }} className="h-4 w-4 accent-teal-600" />Restrict search to a fixed date range</label>
         {useDateRange ? (
@@ -143,15 +148,28 @@ export default function SalahSearch({ onOpenDay }: { onOpenDay: (date: string) =
           <p className="text-sm text-gray-300">Meaning: {outcome.meaning}.</p>
           <h2 className="font-semibold">{outcome.dates.length} matching day{outcome.dates.length === 1 ? '' : 's'}</h2>
           <p className="text-sm text-gray-300">{summary.completed} completed · {summary.missed} missed · {summary.notLogged} not logged · ★ {summary.stars}/{summary.possibleStars} stars across matching days only</p>
+          {outcome.streaks.length ? <section aria-label="Matching streak summaries" className="rounded-lg bg-gray-800 p-4 space-y-3">
+            <h3 className="font-semibold">Matching full streaks</h3>
+            <p className="text-xs text-gray-400">Lengths use full consecutive runs, not just displayed dates. Other filters only select days within those runs.</p>
+            {outcome.streaks.map((scope) => <div key={scope.key}>
+              <h4 className="text-sm font-semibold text-teal-300">{scope.label} · {scope.runs.length} matching run{scope.runs.length === 1 ? '' : 's'}</h4>
+              {scope.runs.length ? <ul className="mt-1 space-y-1 text-xs text-gray-300">{scope.runs.slice(0, 12).map((run) => <li key={run.start}>{run.length} day{run.length === 1 ? '' : 's'} · {run.start}–{run.end}</li>)}</ul> : <p className="mt-1 text-xs text-gray-400">No matching days from this streak scope.</p>}
+              {scope.runs.length > 12 ? <p className="mt-1 text-xs text-gray-400">{scope.runs.length - 12} more runs are labelled on their matching day cards below.</p> : null}
+            </div>)}
+          </section> : null}
           {outcome.dates.length === 0 ? <p className="rounded bg-gray-800 p-4 text-sm text-gray-300">No matching days in this search range.</p> : null}
           {outcome.dates.slice(0, visibleCount).map((date) => {
             const log = store[date]
             const parsed = parseSalahDate(date)
             const run = runByDate.get(date)
+            const scopedRuns = outcome.streaks.flatMap((scope) => {
+              const entry = findSalahStreakRun(scope.runs, date)
+              return entry ? [{ ...entry, label: scope.label, key: scope.key }] : []
+            })
             return (
               <article key={date} className="rounded-lg bg-gray-800 p-4">
                 <button type="button" onClick={() => onOpenDay(date)} className="font-semibold text-teal-300 underline-offset-2 hover:underline focus:underline">{parsed?.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) ?? date} → Open day</button>
-                {run ? <p className="mt-2 text-xs text-teal-300">All-five streak: {run.length} day{run.length === 1 ? '' : 's'} · {run.start}–{run.end} (full run)</p> : null}
+                {scopedRuns.length ? scopedRuns.map((entry) => <p key={entry.key} className="mt-2 text-xs text-teal-300">{entry.label} streak: {entry.length} day{entry.length === 1 ? '' : 's'} · {entry.start}–{entry.end} (full run)</p>) : run ? <p className="mt-2 text-xs text-teal-300">All-five streak: {run.length} day{run.length === 1 ? '' : 's'} · {run.start}–{run.end} (full run)</p> : null}
                 <div className="mt-3 grid gap-2 text-xs sm:grid-cols-5">
                   {SALAH_PRAYERS.map((prayer) => {
                     const status = getSalahStatus(log, prayer)

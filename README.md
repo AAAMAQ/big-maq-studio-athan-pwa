@@ -4,9 +4,18 @@ A lightweight, privacy-friendly Islamic utility built with React, TypeScript, Vi
 
 ## Current release
 
-**v4.0.2 — Clearer Qibla & Quick Refresh**
+**v4.0.3 — Faster Qibla & Prayer Streaks**
 
-Open Qibla with an automatic compass-access attempt and clear live/waiting status, and refresh a slow app from Settings without clearing data. All v4 navigation, customization, Salah tools and private records remain available.
+Prepare your physical location optionally at launch, request iPhone compass permission directly from the Qibla tap, and search individual or combined prayer streaks with labeled lengths and dates. All v4 navigation, customization, Salah tools and private records remain available.
+
+### Added and changed in v4.0.3
+
+- Settings → Preferences → Prepare device location for Qibla at app launch is off by default. Enabling starts a one-shot request; Qibla reuses a recent physical fix or joins the request. Fixes expire after 60 seconds from their actual timestamp; manual/saved-city coordinates and old persisted caches cannot stand in for a fresh physical fix. Slow GPS can still take time. The primary prayer source is unchanged and no launch background GPS watch is added.
+- Opening Qibla requests Safari motion access synchronously from the navigation tap, before lazy loading or waiting for coordinates. The session-only result is reused on mount. A successful request needs no separate Enable Compass tap; the button remains a fallback for denied/gesture-required access or missing sensor readings. Safari controls whether its native popup appears, and permanent permission cannot be guaranteed.
+- Show Sunnahs in Salah Tracker moved to Performance & App Layout → Salah Tracker display, retaining its stored value and immediate-save behavior, independent of layout draft controls.
+- Scoped streaks support `streak(1):max`, independent `streak(1,2):max`, combined `streak(1&2):max`, exact `:5` and minimum `:5+`. Matching full streaks show prayer labels, lengths and dates. Existing all-five queries and saved searches remain compatible.
+- Help explains Safari’s dedicated heading versus Android’s absolute-sensor/fallback handling, without changing either calculation or Android sensor math or claiming universal iPhone accuracy. Physical-device verification is still required.
+- Backups include the validated launch-location preference; Share Your Defaults does not. Updated Help, its Markdown mirror, Developer Notes and Credits; retained the old archive. No dependencies or data uploads added.
 
 ### Added and changed in v4.0.2
 
@@ -170,7 +179,7 @@ Quran Settings provides translation choices with a sample, bookmark controls, an
 
 ### Qibla
 
-Qibla attempts location and iPhone motion permission on opening, while listening for valid compass readings. If no permission popup or live heading appears, tap Enable Compass and choose Allow if asked; iOS/browser popup behavior and permission persistence cannot be controlled by the app. The live/waiting status distinguishes a working compass from a numeric bearing or permission grant alone. Retry controls remain when automatic startup cannot complete. Simple Mode offers turn/alignment guidance, distance, and optional vibration; Advanced Mode exposes bearing and verified device heading.
+Optionally enable Settings → Preferences → Prepare device location for Qibla at app launch. Qibla reuses a recent physical fix or joins its pending request; without one, it requests location on entry. The Qibla navigation tap starts iPhone motion permission immediately, before screen loading or location waiting. If no permission popup or live heading appears, tap Enable Compass and choose Allow if asked; iOS/browser popup behavior and permission persistence cannot be controlled by the app. The live/waiting status distinguishes a working compass from a numeric bearing or permission grant alone. Retry controls remain when automatic startup cannot complete. Simple Mode offers turn/alignment guidance, distance, and optional vibration; Advanced Mode exposes bearing and verified device heading.
 
 iPhone uses its dedicated browser compass heading; supported Android paths use Earth-referenced absolute heading. Relative-only motion is not displayed as North. Initial iOS motion permission can require a tap; support varies by browser/device. Desktop machines often lack compass sensors. Sensor calibration, magnetic interference, location accuracy, and permissions affect results. Desktop/mocked tests do not replace physical-phone verification.
 
@@ -225,6 +234,11 @@ Searches return **days**, not individual prayers. Names are case-insensitive; pr
 | `(streak:5)` | Dates in an exact maximal five-day run with all five prayers completed |
 | `(streak:5+)` | Dates in a maximal all-five run of at least five days |
 | `(streak:max)` | Dates in all tied longest runs intersecting the explicit search scope |
+| `streak(1):max` | Longest Fajr runs; equivalent to `streak(fajr):max` |
+| `streak(1,2):max` | Independent Fajr and Dhuhr maxima, with separate labeled summaries |
+| `streak(1&2):max` | Longest runs where both Fajr and Dhuhr were completed every day |
+| `streak(1&2):5` | Joint Fajr/Dhuhr runs of exactly five days, not longer |
+| `streak(1&2):5+` | Joint Fajr/Dhuhr runs of at least five days |
 
 `&` is AND; comma/semicolon are OR. AND binds before OR; parentheses explicitly group conditions. `A&(B,C)` distributes like `(A&B),(A&C)`. Square brackets are reserved for exact completed-prayer sets—not arbitrary attribute groups. `!` can negate notes/counts/weekdays/relative predicates, but prayer `!` retains its explicit-Missed meaning. `~` and `/` apply to prayers.
 
@@ -247,6 +261,8 @@ Default scope is recorded dates through today. An explicit fixed date range can 
 #### Saved/recent searches and result summaries
 
 All-five runs require every obligatory prayer explicitly completed on consecutive tracker-local dates; missed, unlogged and absent days break them. A seven-day run does not match `streak:5`, but matches `streak:5+`. Runs are derived before other query filters; month predicates restrict displayed dates, not verified full length. `streak:max` ranks full lengths of runs intersecting the explicit scope and includes ties. Analytics instead clips runs inside its chosen period and displays date ranges/boundary context. Search help is expandable without resetting queries or results.
+
+Scoped runs apply the same rules only to selected prayers. Inside `streak(...)`, comma separates independent scopes; `&` requires joint completion. Unselected prayer statuses do not break a scoped run. Maxima are ranked independently per scope before other query predicates. Matching full streaks shows each matching run’s length and full dates even when filters narrow its day cards; large lists have a labeled summary limit and per-day run details. Sunnah visibility is controlled in Performance & App Layout → Salah Tracker display, not Preferences.
 
 Save a valid query with a name, reopen it, rename it, or remove it. Stored definitions rerun against current records—no copied history. Up to 30 named searches and eight recent valid queries are retained; examples/suggestions are local.
 

@@ -1,4 +1,5 @@
 import { deriveSalahStreakRuns, indexSalahStreakRuns, formatSalahDate, getSalahStatus, normalizeSalahLogStore, parseSalahDate, SALAH_PRAYERS, summarizeSalahDay, type SalahDayLog, type SalahLogStore, type SalahPrayerKey, type SalahStreakRun } from './salahInsights'
+import { deriveScopedSalahStreakRuns, salahStreakScopeKey } from './salahStreaks'
 
 type DateValue = number | [number, number]
 export type SearchNode =
@@ -8,7 +9,7 @@ export type SearchNode =
   | { kind: 'notes' }
   | { kind: 'weekday'; value: number }
   | { kind: 'relative'; days: number }
-  | { kind: 'streak'; value: number | 'max'; minimum: boolean }
+  | { kind: 'streak'; value: number | 'max'; minimum: boolean; groups?: SalahPrayerKey[][] }
   | { kind: 'not'; node: SearchNode }
   | { kind: 'and'; nodes: SearchNode[] }
   | { kind: 'or'; nodes: SearchNode[] }
@@ -163,13 +164,25 @@ export function parseSalahSearch(query: string): SearchNode {
     }
     const first = dateToken()
     if (first === 'streak') {
-      if (!consume(':')) return fail('Use streak:5, streak:5+, or streak:max')
+      let groups: SalahPrayerKey[][] | undefined
+      if (consume('(')) {
+        groups = []
+        do {
+          const group = [prayer()]
+          while (consume('&')) group.push(prayer())
+          groups.push(group)
+        } while (consume(','))
+        if (!consume(')')) return fail('Close the prayer scope with ); use & together or comma for independent streaks')
+        const all = groups.flat()
+        if (new Set(all).size !== all.length) return fail('List each prayer only once in a streak scope')
+      }
+      if (!consume(':')) return fail('Use streak:5, streak:5+, streak:max, or streak(1&2):max')
       const value = token()
       const minimum = consume('+')
-      if (value === 'max' && !minimum) return { kind: 'streak', value: 'max', minimum: false }
+      if (value === 'max' && !minimum) return { kind: 'streak', value: 'max', minimum: false, ...(groups ? { groups } : {}) }
       const number = Number(value)
       if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number <= 0) return fail('Use a positive whole-day streak length, or streak:max')
-      return { kind: 'streak', value: number, minimum }
+      return { kind: 'streak', value: number, minimum, ...(groups ? { groups } : {}) }
     }
     const count = /^(star|stars|logged|done)(\d*)$/.exec(first)
     if (count) {
@@ -216,15 +229,21 @@ export function parseSalahSearch(query: string): SearchNode {
   return result
 }
 
-export type SalahStreakSearchContext = { byDate: Map<string, SalahStreakRun>; longestLength: number }
+type StreakNode = Extract<SearchNode, { kind: 'streak' }>
+type StreakScopeContext = { byDate: Map<string, SalahStreakRun>; longestLength: number; runs: SalahStreakRun[]; prayers: SalahPrayerKey[] }
+export type SalahStreakSearchContext = { byDate: Map<string, SalahStreakRun>; longestLength: number; scopes?: Map<string, StreakScopeContext> }
+const streakGroups = (node: StreakNode): SalahPrayerKey[][] => node.groups ?? [SALAH_PRAYERS.slice()]
+const matchesStreakRun = (node: StreakNode, run: SalahStreakRun, longest: number) => node.value === 'max' ? run.length === longest : node.minimum ? run.length >= node.value : run.length === node.value
 export function matchesSalahSearch(node: SearchNode, log: SalahDayLog | undefined, date?: string, today = new Date(), streaks?: SalahStreakSearchContext): boolean {
   if (node.kind === 'and') return node.nodes.every((part) => matchesSalahSearch(part, log, date, today, streaks))
   if (node.kind === 'or') return node.nodes.some((part) => matchesSalahSearch(part, log, date, today, streaks))
   if (node.kind === 'not') return !matchesSalahSearch(node.node, log, date, today, streaks)
   if (node.kind === 'streak') {
-    const run = date ? streaks?.byDate.get(date) : undefined
-    if (!run) return false
-    return node.value === 'max' ? run.length === streaks?.longestLength : node.minimum ? run.length >= node.value : run.length === node.value
+    return streakGroups(node).some((group) => {
+      const scope = streaks?.scopes?.get(salahStreakScopeKey(group)) ?? (!node.groups ? streaks : undefined)
+      const run = date ? scope?.byDate.get(date) : undefined
+      return !!run && matchesStreakRun(node, run, scope!.longestLength)
+    })
   }
   if (node.kind === 'notes') return Boolean(log?.Notes?.trim())
   if (node.kind === 'count') { const counts = summarizeSalahDay(log); return counts[node.field] >= node.min && counts[node.field] <= node.max }
@@ -257,7 +276,11 @@ export function explainSalahSearch(query: string | SearchNode): string {
     if (node.kind === 'not') return `not (${describe(node.node)})`
     if (node.kind === 'weekday') return `${WEEKDAY_NAMES[node.value]} dates`
     if (node.kind === 'relative') return 'dates in the last 30 days, including today'
-    if (node.kind === 'streak') return node.value === 'max' ? 'days in the longest all-five completed run(s) intersecting the selected scope, before other query filters' : `days in a full all-five completed run of ${node.minimum ? 'at least' : 'exactly'} ${node.value} days`
+    if (node.kind === 'streak') {
+      const scopes = node.groups ? node.groups.map((group) => `${group.join(' and ')}${group.length > 1 ? ' together' : ''}`).join(' or ') : 'all-five'
+      const independent = node.groups && node.groups.length > 1 ? ' (independent streaks for each scope)' : ''
+      return (node.value === 'max' ? `days in the longest ${scopes} completed run(s) intersecting the selected scope, before other query filters` : `days in a full ${scopes} completed run of ${node.minimum ? 'at least' : 'exactly'} ${node.value} days`) + independent
+    }
     if (node.kind === 'count') return `${node.min === node.max ? `exactly ${node.min}` : `${node.min}–${node.max}`} ${node.field === 'stars' ? 'stars out of 5 (completed prayers)' : 'prayers logged as completed or missed'}`
     if (node.kind === 'date') {
       if ([node.month, node.year, node.day].some(Array.isArray)) {
@@ -274,13 +297,23 @@ export function explainSalahSearch(query: string | SearchNode): string {
   return describe(typeof query === 'string' ? parseSalahSearch(query) : query)
 }
 
-export function searchSalahDays(
+function collectStreakNodes(node: SearchNode): StreakNode[] {
+  if (node.kind === 'streak') return [node]
+  if (node.kind === 'and' || node.kind === 'or') return node.nodes.flatMap(collectStreakNodes)
+  if (node.kind === 'not') return collectStreakNodes(node.node)
+  return []
+}
+
+export type SalahSearchStreakSummary = { key: string; label: string; prayers: SalahPrayerKey[]; runs: SalahStreakRun[] }
+
+/** Days and labelled maximal runs share one computation; other query filters never shorten runs. */
+export function searchSalahDaysWithStreaks(
   storeInput: SalahLogStore,
   query: string | SearchNode,
   range?: { from: string; to: string; includeBlankDates?: boolean },
   today = new Date(),
   verifiedRuns?: SalahStreakRun[]
-): string[] {
+): { dates: string[]; streaks: SalahSearchStreakSummary[] } {
   const node = typeof query === 'string' ? parseSalahSearch(query) : query
   const store = normalizeSalahLogStore(storeInput)
   const todayKey = formatSalahDate(today)
@@ -307,17 +340,50 @@ export function searchSalahDays(
   } else {
     dates = Object.keys(store).filter((date) => date <= todayKey)
   }
-  const hasStreak = (part: SearchNode): boolean => part.kind === 'streak' || (part.kind === 'and' || part.kind === 'or') && part.nodes.some(hasStreak) || part.kind === 'not' && hasStreak(part.node)
-  const runs = hasStreak(node) ? verifiedRuns ?? deriveSalahStreakRuns(store, today) : []
-  let longestLength = 0
+  const streakNodes = collectStreakNodes(node)
   const from = range ? formatSalahDate(parseSalahDate(range.from)!) : undefined
   const toKey = range ? formatSalahDate(parseSalahDate(range.to)!) : undefined
   const to = toKey && toKey > todayKey ? todayKey : toKey
-  for (const run of runs) {
-    if ((!from || run.end >= from) && (!to || run.start <= to)) longestLength = Math.max(longestLength, run.length)
+  const scopes = new Map<string, StreakScopeContext>()
+  for (const part of streakNodes) for (const prayers of streakGroups(part)) {
+    const key = salahStreakScopeKey(prayers)
+    if (scopes.has(key)) continue
+    const runs = prayers.length === SALAH_PRAYERS.length ? verifiedRuns ?? deriveSalahStreakRuns(store, today) : deriveScopedSalahStreakRuns(store, prayers, today)
+    let longestLength = 0
+    for (const run of runs) {
+      if ((!from || run.end >= from) && (!to || run.start <= to)) longestLength = Math.max(longestLength, run.length)
+    }
+    scopes.set(key, { byDate: indexSalahStreakRuns(runs), longestLength, runs, prayers })
   }
-  const streaks = { byDate: indexSalahStreakRuns(runs), longestLength }
-  return dates.filter((date) => matchesSalahSearch(node, store[date], date, today, streaks)).sort().reverse()
+  const context: SalahStreakSearchContext = { byDate: new Map(), longestLength: 0, scopes }
+  const matchedDates = dates.filter((date) => matchesSalahSearch(node, store[date], date, today, context)).sort().reverse()
+  const summaries = new Map<string, SalahSearchStreakSummary>()
+  // A run is reported only if it contributes to a matched day. This avoids attributing
+  // an OR branch's unrelated note/date result to a streak that did not match.
+  for (const part of streakNodes) for (const prayers of streakGroups(part)) {
+    const key = salahStreakScopeKey(prayers)
+    const scope = scopes.get(key)!
+    const relevant = new Set<SalahStreakRun>()
+    for (const date of matchedDates) {
+      const run = scope.byDate.get(date)
+      if (run && matchesStreakRun(part, run, scope.longestLength)) relevant.add(run)
+    }
+    const previous = summaries.get(key)
+    const runs = [...new Set([...(previous?.runs ?? []), ...relevant])].sort((left, right) => left.start.localeCompare(right.start))
+    summaries.set(key, { key, label: prayers.length === 5 ? 'All-five' : prayers.join(' + ') + (prayers.length > 1 ? ' together' : ''), prayers, runs })
+  }
+  return { dates: matchedDates, streaks: [...summaries.values()] }
+}
+
+/** Compatibility wrapper for existing saved searches and callers needing dates only. */
+export function searchSalahDays(
+  storeInput: SalahLogStore,
+  query: string | SearchNode,
+  range?: { from: string; to: string; includeBlankDates?: boolean },
+  today = new Date(),
+  verifiedRuns?: SalahStreakRun[]
+): string[] {
+  return searchSalahDaysWithStreaks(storeInput, query, range, today, verifiedRuns).dates
 }
 
 export function summarizeSalahSearchResults(store: SalahLogStore, dates: string[]) {

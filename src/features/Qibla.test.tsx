@@ -1,14 +1,16 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Qibla from './Qibla'
+import { clearQiblaNavigationCompassRequest, getQiblaNavigationCompassRequest, prepareQiblaCompassAccess } from '../lib/qiblaCompassAccess'
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(), reverse: vi.fn(), save: vi.fn(), start: vi.fn(),
-  stop: vi.fn(), request: vi.fn(), watch: vi.fn(), clearWatch: vi.fn()
+  stop: vi.fn(), request: vi.fn(), watch: vi.fn(), clearWatch: vi.fn(), recent: vi.fn()
 }))
 
 vi.mock('../lib/locationStore', () => ({
-  refreshDeviceLocation: mocks.refresh, reverseGeocodeCoordinates: mocks.reverse, saveCachedLocation: mocks.save
+  refreshDeviceLocation: mocks.refresh, reverseGeocodeCoordinates: mocks.reverse, saveCachedLocation: mocks.save, getRecentDeviceLocation: mocks.recent
 }))
 vi.mock('../lib/qiblaHeading', () => ({
   isQiblaCompassSupported: () => true,
@@ -21,6 +23,7 @@ const ready = { location, permission: 'granted', loading: false, error: '' }
 
 beforeEach(() => {
   vi.resetAllMocks()
+  clearQiblaNavigationCompassRequest(getQiblaNavigationCompassRequest())
   localStorage.clear()
   vi.stubGlobal('navigator', { geolocation: { watchPosition: mocks.watch, clearWatch: mocks.clearWatch } })
   vi.stubGlobal('DeviceOrientationEvent', { requestPermission: mocks.request })
@@ -28,6 +31,7 @@ beforeEach(() => {
   mocks.refresh.mockResolvedValue(ready)
   mocks.reverse.mockResolvedValue({ label: 'Shanghai, China', city: 'Shanghai', country: 'China', countryCode: 'CN' })
   mocks.request.mockResolvedValue('granted')
+  mocks.recent.mockReturnValue(null)
   mocks.start.mockImplementation((callbacks) => {
     callbacks.onReading({ heading: 120, source: 'ios-compass' })
     return { stop: mocks.stop }
@@ -165,5 +169,49 @@ describe('Qibla automatic startup', () => {
     await screen.findByText(/Live compass.*iPhone compass ready/)
     expect(mocks.request).not.toHaveBeenCalled()
     expect(mocks.start).toHaveBeenCalledOnce()
+  })
+  it('shows prepared coordinates immediately without another location request or second motion popup', async () => {
+    mocks.recent.mockReturnValue({ ...location, city: 'Prepared city' })
+    mocks.refresh.mockReturnValue(new Promise(() => {}))
+    prepareQiblaCompassAccess()
+    expect(mocks.request).toHaveBeenCalledOnce()
+    render(<Qibla />)
+    expect(screen.getByText('Prepared city')).toBeVisible()
+    expect(screen.getByText(/Qibla \d/)).toBeVisible()
+    expect(mocks.refresh).not.toHaveBeenCalled()
+    await screen.findByText('Shanghai, China')
+    expect(mocks.request).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Enable Compass' })).not.toBeInTheDocument()
+  })
+  it('requests motion access without waiting for slow location, retaining the navigation grant', async () => {
+    let completeLocation!: (state: typeof ready) => void
+    mocks.refresh.mockReturnValue(new Promise(resolve => { completeLocation = resolve }))
+    mocks.start.mockReturnValue({ stop: mocks.stop })
+    prepareQiblaCompassAccess()
+    render(<Qibla />)
+    await screen.findByText(/Motion access granted, but the compass is not live yet/)
+    expect(mocks.request).toHaveBeenCalledOnce()
+    await act(async () => { completeLocation(ready) })
+    act(() => { mocks.start.mock.calls.at(-1)![0].onReading({ heading: 120, source: 'ios-compass' }) })
+    expect(screen.getByText(/Live compass/)).toBeVisible()
+    expect(mocks.request).toHaveBeenCalledOnce()
+  })
+  it('retains a pending navigation grant across StrictMode effect replay and cleans up listeners', async () => {
+    let completePermission!: (value: string) => void
+    mocks.request.mockReturnValue(new Promise(resolve => { completePermission = resolve }))
+    mocks.recent.mockReturnValue(location)
+    mocks.start.mockReturnValue({ stop: mocks.stop })
+    prepareQiblaCompassAccess()
+    const view = render(<StrictMode><Qibla /></StrictMode>)
+    await screen.findByRole('button', { name: 'Requesting compass access…' })
+    expect(mocks.request).toHaveBeenCalledOnce()
+    await act(async () => { completePermission('granted') })
+    await screen.findByText(/Motion access granted, but the compass is not live yet/)
+    act(() => { mocks.start.mock.calls.at(-1)![0].onReading({ heading: 120, source: 'ios-compass' }) })
+    expect(screen.getByText(/Live compass/)).toBeVisible()
+    view.unmount()
+    expect(mocks.request).toHaveBeenCalledOnce()
+    expect(mocks.stop).toHaveBeenCalledTimes(mocks.start.mock.calls.length)
+    expect(mocks.clearWatch).toHaveBeenCalledWith(42)
   })
 })

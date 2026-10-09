@@ -1,6 +1,6 @@
 # Need Help
 
-Current guide for Athan PWA v4.0.2 — Clearer Qibla & Quick Refresh. Updated October 9, 2026 (Asia/Shanghai).
+Current guide for Athan PWA v4.0.3 — Faster Qibla & Prayer Streaks. Updated October 10, 2026 (Asia/Shanghai).
 
 This mirrors the current in-app guide. The separately archived old guide is historical reference only. Open Need Help directly from Feature Hub, Search app, Credits, or a custom shortcut.
 
@@ -352,7 +352,7 @@ Completed, Missed and Not logged mean different things.
 5. Use Insights, Search Salah Progress or Graph Insights for reflection without cluttering daily logging.
 
 - No data for this day means there are no obligatory logs—it does not mean five recorded misses. Unknown entries stay unknown.
-- Sunnahs can be shown from Settings → Preferences. They never change obligatory stars, completion rates or verified streaks.
+- Sunnahs can be shown from Settings → Performance & App Layout → Salah Tracker display. This saves immediately, even when Custom Layout is off; layout draft Save/Cancel does not change it. They never change obligatory stars, completion rates or verified streaks.
 - Tracker history and notes remain local. Back them up privately; they are excluded from Share Your Defaults.
 
 In-app action: **Open Salah Tracker**.
@@ -388,6 +388,14 @@ A full-day run needs all five obligatory prayers explicitly completed on consecu
 - Search streak:5 means a full run of exactly five days; streak:5+ means five or more; streak:max includes tied longest full runs intersecting your fixed search scope.
 - Runs are derived before other query filters. A month/date/notes predicate narrows displayed days, not the underlying run’s length. To find the longest run intersecting October, choose October as the fixed search range.
 - Analytics instead reports the longest segment inside its selected period, with date ranges and boundary context. This can differ from the full-run length shown in Search.
+
+### Individual and combined prayer streaks
+
+Use streak(1):max or streak(fajr):max for Fajr alone. Inside streak(...), comma creates independent scopes: streak(1,2):max finds each prayer’s own longest run and returns their matching dates together. Ampersand creates a joint scope: streak(1&2):max requires both Fajr and Dhuhr completed on each consecutive day.
+
+- Only the selected prayers must be completed. Missed, unlogged or absent selected prayers break the run; unselected prayer statuses do not.
+- streak(1&2):5 matches a full joint run of exactly five days, not a five-day slice of a longer run. Use :5+ for five or more. :max includes tied maxima independently per scope, ranked before other predicates.
+- Matching full streaks labels each prayer/scope, verified length and full start/end dates. Day cards retain the full run context when another filter hides some dates. Large summary lists are limited with a clear count and remaining run details on day cards.
 
 In-app action: **Open Salah Insights**.
 
@@ -449,6 +457,12 @@ Prayer numbers are 1 Fajr, 2 Dhuhr, 3 Asr, 4 Maghrib, 5 Isha. Names and common a
 - `(streak:5)` — Dates in a full all-five completed run of exactly five consecutive days. A seven-day run does not match.
 - `(streak:5+)` — Dates in an all-five completed run of at least five consecutive days.
 - `(streak:max)` — Dates in the tied longest full runs intersecting the selected fixed scope, before other query filters.
+- `streak(1):max` — Longest Fajr runs; streak(fajr):max is equivalent. Other prayers are unrestricted.
+- `streak(1,2):max` — Independent longest Fajr and Dhuhr runs, with separate labeled lengths and dates.
+- `streak(1&2):max` — Longest runs where both Fajr and Dhuhr were completed on every consecutive day.
+- `streak(1&2):5` — Joint Fajr/Dhuhr runs of exactly five days; longer runs do not match.
+- `streak(1&2):5+` — Joint Fajr/Dhuhr runs of at least five days.
+- `(Oct.26y)&streak(fajr):max` — October 2026 dates in Fajr’s longest runs for the fixed search scope; the date predicate does not rerank runs.
 
 In-app action: **Open Search Salah Progress**.
 
@@ -509,8 +523,8 @@ In-app action: **Open Quran**.
 
 The same geographic Qibla calculation, different iPhone/Android compass paths, and honest accuracy limits.
 
-1. Open Qibla. It attempts your physical device location automatically; if that fails, allow location access in the browser/site settings and use Enable Location when shown.
-2. On iPhone, Qibla attempts compass permission on every visit and listens for valid headings. Choose Allow if the popup appears. If no popup or live direction appears, tap Enable Compass; iOS may require that explicit tap. The screen stays marked as not live until a heading arrives, even after permission succeeds. The browser/iOS decides whether to ask again; Athan cannot force the popup or permanent permission.
+1. Optionally turn on Settings → Preferences → Prepare device location for Qibla at app launch. It is off by default and may ask for location permission at launch. It prepares a one-shot physical fix without changing your saved prayer city. Qibla reuses a recent fix or joins the pending request; an immediate tap can still precede a slow GPS fix. If location fails, allow access in the browser/site settings and use Enable Location when shown.
+2. On iPhone, tapping Qibla starts the motion permission request before screen loading or waiting for location. Choose Allow if the popup appears; a successful request needs no separate Enable Compass tap. If no popup or live direction appears, use Enable Compass as a retry. The screen stays marked as not live until a heading arrives, even after permission succeeds. The browser/iOS decides whether to ask again; Athan cannot force the popup or permanent permission.
 3. Use Simple Mode’s turn/alignment guidance or Advanced Mode’s bearing and heading. An available numeric bearing is not proof the device has a working compass.
 4. Move away from magnets, speakers and large metal objects; remove magnetic cases and calibrate according to your device’s guidance. Obtain a better location fix if the reported position is unsuitable.
 5. Compare with a trusted local direction/masjid when uncertain; treat low accuracy and unsupported-sensor messages seriously.
@@ -538,9 +552,9 @@ Alignment means the supplied heading is within 5° of the calculated bearing. Th
 
 ### iPhone / iPad: Safari compass and permission
 
-On Apple mobile devices, the app listens for Safari’s deviceorientation events and uses a finite webkitCompassHeading reading, normalized to 0–360°. It does not treat generic relative alpha rotation as a reliable North reference. The device/browser supplies this compass heading; the app does not reproduce Apple’s internal sensor calibration.
+On Apple mobile devices, the app listens for Safari’s deviceorientation events and uses a finite webkitCompassHeading reading, normalized to 0–360°. It does not treat generic relative alpha rotation as a reliable North reference. The device/browser supplies this compass heading; the app does not reproduce Apple’s internal sensor calibration. This Safari-specific field is not generally exposed by Android browsers, so copying this exact path can produce no usable heading on Android. That is why Android has its own absolute-sensor/fallback handling—not because Android phones universally lack compass hardware.
 
-Qibla attempts motion/orientation access on opening. Safari/iOS decides whether the native Allow popup appears or an explicit tap is required. If no live heading appears, tap Enable Compass and choose Allow if asked. Permission granted alone does not prove that the compass is working.
+The Qibla navigation tap calls Safari’s motion/orientation request directly, before lazy screen loading or any location wait, so it retains the tap’s browser user activation. The screen reuses that session-only result rather than requesting again. Safari/iOS decides whether the native Allow popup appears; denied access, a lost gesture or no usable heading still needs the Enable Compass fallback. Permission granted alone does not prove that the compass is working.
 
 Hold the phone flat in portrait orientation for the clearest comparison. The iPhone path uses the supplied compass heading directly, without the Android path’s additional smoothing and screen-rotation conversion. A denied permission, missing heading or unsupported browser can leave the numeric bearing available without a moving compass.
 
@@ -574,7 +588,7 @@ Location accuracy affects the calculated bearing; compass accuracy affects how t
 2. Move the phone gently in a figure-eight and follow any device calibration guidance. Athan has no separate recalibrate button; sensor calibration belongs to the device/browser.
 3. If the location is poor indoors or underground, try near a window or outdoors, then reopen Qibla or use its location retry control.
 4. If it still looks wrong, restart the browser/phone or try another supported browser. Close unrelated heavy tabs if the device is struggling, without clearing your Athan records.
-5. Compare with a trusted local masjid direction, a reliable physical compass/local landmark guidance, or another phone. Another app on the same phone can share the same hardware problem.
+5. Compare with a trusted local masjid direction, a reliable physical compass/local landmark guidance, or another calibrated phone, including an iPhone if available. Comparing two devices can reveal a problem, but neither brand is an accuracy guarantee. Another app on the same phone can share the same hardware problem.
 
 - An internet connection can help some location providers, but a better connection is not a cure for faulty GPS/compass hardware or denied permissions. No app can promise to repair those problems.
 - If you have no usable compass heading, use the numeric bearing only with an independent trustworthy North reference. Do not treat an unsupported desktop’s display as a live phone compass.

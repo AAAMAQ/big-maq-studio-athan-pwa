@@ -1,4 +1,4 @@
-import { getUserLocation } from './location'
+import { getRecentPhysicalPosition, getUserLocation } from './location'
 
 export type AppLocation = {
   latitude: number
@@ -45,6 +45,20 @@ export function subscribeLocation(listener: (state: LocationState) => void): () 
 
 export function getLocationState(): LocationState {
   return memoryState
+}
+
+/** A bounded, session-confirmed device fix; saved city/manual/cache cannot authorize Qibla. */
+export function getRecentDeviceLocation(): AppLocation | null {
+  const position = getRecentPhysicalPosition()
+  if (!position) return null
+  const { latitude, longitude } = position.coords
+  const cached = loadCachedLocation()
+  const sameDevice = cached?.source === 'device' && cached.latitude === latitude && cached.longitude === longitude
+  return {
+    ...(sameDevice ? cached : {}),
+    latitude, longitude, source: 'device',
+    updatedAt: sameDevice ? cached.updatedAt : new Date().toISOString()
+  }
 }
 
 export async function refreshDeviceLocation(options: { allowCachedFallback?: boolean } = {}): Promise<LocationState> {

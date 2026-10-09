@@ -5,11 +5,35 @@ import FeatureHub from './FeatureHub'
 import More from './More'
 import { APP_LAYOUT_KEY, defaultAppLayout, loadAppLayout, saveAppLayout } from '../lib/appLayout'
 import { loadPerformancePreferences } from '../lib/performancePreferences'
+import { loadShowSunnah } from '../lib/preferences'
 
 beforeEach(() => localStorage.clear())
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('Layout editor', () => {
+  it('preserves the existing Sunnah preference and saves it independently of layout drafts', () => {
+    localStorage.setItem('athan.preference.showSunnah.v1', 'true')
+    localStorage.setItem('salahLogV1', 'private fixture')
+    render(<AppLayout />)
+    const sunnah = screen.getByRole('checkbox', { name: 'Show Sunnahs in Salah Tracker' })
+    expect(sunnah).toBeChecked()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable Custom Layout when saved' }))
+    fireEvent.click(sunnah)
+    expect(loadShowSunnah()).toBe(false)
+    expect(loadAppLayout().enabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel layout edits' }))
+    expect(loadShowSunnah()).toBe(false)
+    expect(localStorage.getItem('salahLogV1')).toBe('private fixture')
+  })
+
+  it('does not falsely save Sunnah display when storage is full', () => {
+    render(<AppLayout />)
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('full') })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show Sunnahs in Salah Tracker' }))
+    expect(screen.getByRole('checkbox', { name: 'Show Sunnahs in Salah Tracker' })).not.toBeChecked()
+    expect(screen.getByRole('status')).toHaveTextContent('Tracker display preference could not be saved')
+  })
+
   it('previews and saves optional Salah Brief without copying tracker data', () => {
     localStorage.setItem('salahLogV1', 'private fixture')
     render(<AppLayout />)

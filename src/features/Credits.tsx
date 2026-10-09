@@ -107,7 +107,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v4.0.2 — Clearer Qibla & Quick Refresh: attempt compass access on every Qibla visit, with an Enable Compass fallback and clear live/waiting status. iOS controls its permission popup. Added a normal Refresh app button in PWA status, separate from updating or clearing data."
+            value="v4.0.3 — Faster Qibla & Prayer Streaks: optional device location preparation at launch, compass permission requested directly from the Qibla tap, and individual or combined prayer streak searches with lengths and dates. Sunnah visibility is now in Performance & App Layout. Browser permissions and physical sensor accuracy remain device-controlled."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>

@@ -39,6 +39,38 @@ describe('Salah query definitions and live summaries', () => {
     expect(screen.getByRole('heading', { name: '1 matching day' })).toBeTruthy()
     expect(screen.getByText(/All-five streak: 3 days · 2026-10-03–2026-10-05/)).toBeTruthy()
   })
+  it('reports independent scoped streak lengths and combined runs without counting day cards', () => {
+    localStorage.setItem(SALAH_LOG_STORAGE_KEY, JSON.stringify({
+      '2026-10-01': { Fajr: true, Dhuhr: false },
+      '2026-10-02': { Fajr: true, Dhuhr: true },
+      '2026-10-03': { Fajr: true, Dhuhr: true },
+      '2026-10-04': { Fajr: false, Dhuhr: true },
+      '2026-10-05': { Fajr: true, Dhuhr: true }
+    }))
+    render(<SalahSearch onOpenDay={vi.fn()} />)
+    const query = screen.getByRole('searchbox')
+    fireEvent.change(query, { target: { value: 'streak(1,2):max' } })
+    expect(screen.getByRole('heading', { name: 'Fajr · 1 matching run' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Dhuhr · 1 matching run' })).toBeTruthy()
+    expect(screen.getByText('3 days · 2026-10-01–2026-10-03')).toBeTruthy()
+    expect(screen.getByText('4 days · 2026-10-02–2026-10-05')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '5 matching days' })).toBeTruthy()
+    fireEvent.change(query, { target: { value: 'streak(1&2):2' } })
+    expect(screen.getByRole('heading', { name: 'Fajr + Dhuhr together · 1 matching run' })).toBeTruthy()
+    expect(screen.getByText('2 days · 2026-10-02–2026-10-03')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '2 matching days' })).toBeTruthy()
+  })
+  it('shows full scoped length when a date filter leaves one result, and opens that day', () => {
+    localStorage.setItem(SALAH_LOG_STORAGE_KEY, JSON.stringify({ '2026-10-03': { Fajr: true }, '2026-10-04': { Fajr: true }, '2026-10-05': { Fajr: true, Notes: 'Today' } }))
+    const openDay = vi.fn()
+    render(<SalahSearch onOpenDay={openDay} />)
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: '(streak(fajr):max)&Oct.5&notes' } })
+    expect(screen.getByRole('heading', { name: '1 matching day' })).toBeTruthy()
+    expect(screen.getByText('3 days · 2026-10-03–2026-10-05')).toBeTruthy()
+    expect(screen.getByText(/Fajr streak: 3 days/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Mon, Oct 5, 2026 → Open day/ }))
+    expect(openDay).toHaveBeenCalledWith('2026-10-05')
+  })
   it('saves, opens, renames and removes a query without copying records', () => {
     render(<SalahSearch onOpenDay={vi.fn()} />)
     const query = screen.getByRole('searchbox')

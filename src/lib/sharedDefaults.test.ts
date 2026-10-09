@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { applySharedDefaults, createSharedDefaults, createSharedDefaultsUrl, parseSharedDefaultsUrl } from './sharedDefaults'
 import { APP_LAYOUT_EVENT, APP_LAYOUT_KEY, defaultAppLayout, loadAppLayout, saveAppLayout } from './appLayout'
+import { QIBLA_AUTO_LOCATION_KEY, loadAutomaticQiblaLocation } from './qiblaPreferences'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -32,6 +33,7 @@ describe('shared defaults', () => {
     localStorage.setItem('athan.ramadan.fasts.v1', '[{"private":true}]')
     localStorage.setItem('athan.quran.progress.v1', '{"lastReadAyah":7}')
     localStorage.setItem('athan.location.cache.v1', '{"latitude":1,"longitude":2}')
+    localStorage.setItem(QIBLA_AUTO_LOCATION_KEY, 'true')
 
     const url = createSharedDefaultsUrl('https://athan.example/app')
     const parsed = parseSharedDefaultsUrl(url)
@@ -51,6 +53,7 @@ describe('shared defaults', () => {
     expect(JSON.stringify(parsed)).not.toContain('09:30')
     expect(JSON.stringify(parsed)).not.toContain('minutesBefore')
     expect(JSON.stringify(parsed)).not.toContain('savedCityTimeView')
+    expect(JSON.stringify(parsed)).not.toMatch(/autoLocation|qibla/)
     expect(Object.keys(parsed ?? {})).toEqual(['app', 'version', 'prayer', 'preferences', 'reminders'])
   })
 
@@ -59,6 +62,7 @@ describe('shared defaults', () => {
     localStorage.setItem('athan.salah.reminder.v1', '{"enabled":true,"time":"20:30"}')
     localStorage.setItem('athan.ramadan.fasts.v1', '[{"date":"2026-03-01"}]')
     localStorage.setItem('athan.quran.progress.v1', '{"lastReadAyah":7}')
+    localStorage.setItem(QIBLA_AUTO_LOCATION_KEY, 'true')
 
     applySharedDefaults({
       app: 'Athan PWA defaults',
@@ -75,6 +79,7 @@ describe('shared defaults', () => {
     expect(localStorage.getItem('athan.salah.reminder.v1')).toBe('{"enabled":true,"time":"20:30"}')
     expect(localStorage.getItem('athan.ramadan.fasts.v1')).toBe('[{"date":"2026-03-01"}]')
     expect(localStorage.getItem('athan.quran.progress.v1')).toBe('{"lastReadAyah":7}')
+    expect(loadAutomaticQiblaLocation()).toBe(true)
   })
 
   it('rejects malformed and unsupported links', () => {
@@ -85,7 +90,7 @@ describe('shared defaults', () => {
   it('shares a strict v2 arrangement only when selected, excluding injected personal fields', () => {
     const layout = { ...defaultAppLayout(), enabled: true, navigation: ['Quran', 'Iqama'], home: [], more: ['SalahTracker'], homeSections: { salahBrief: true, salahBriefView: 'bars', graph: 'PRIVATE_SENTINEL' }, notes: 'PRIVATE_SENTINEL' }
     localStorage.setItem(APP_LAYOUT_KEY, JSON.stringify(layout))
-    for (const key of ['salahLogV1', 'salahSavedSearchesV1', 'salahRecentSearchesV1', 'athan.performance.v1', 'athan.settings.sections.v1', 'athan.salah.reminder.v1', 'athan.quran.progress.v1', 'athan.location.cache.v1']) localStorage.setItem(key, 'PRIVATE_SENTINEL')
+    for (const key of ['salahLogV1', 'salahSavedSearchesV1', 'salahRecentSearchesV1', 'athan.performance.v1', 'athan.settings.sections.v1', 'athan.salah.reminder.v1', 'athan.quran.progress.v1', 'athan.location.cache.v1', QIBLA_AUTO_LOCATION_KEY]) localStorage.setItem(key, 'PRIVATE_SENTINEL')
     expect(createSharedDefaults().version).toBe(1)
     expect(createSharedDefaults().layout).toBeUndefined()
     const parsed = parseSharedDefaultsUrl(createSharedDefaultsUrl('https://athan.example', { includeLayout: true }))!

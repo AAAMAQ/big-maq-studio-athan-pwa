@@ -12,6 +12,9 @@ import { rootFeatureLabel, rootForScreen, type RootFeatureId } from './lib/rootF
 import { getLazyScreen, resetFeatureScreen, scheduleFeaturePreparation } from './lib/screenLoader'
 import { refreshAthanApp } from './lib/pwa'
 import { isNavigationIntent, isScreen } from './lib/navigationIntent'
+import { getRecentDeviceLocation, refreshDeviceLocation } from './lib/locationStore'
+import { loadAutomaticQiblaLocation, QIBLA_PREFERENCES_EVENT } from './lib/qiblaPreferences'
+import { prepareQiblaCompassAccess } from './lib/qiblaCompassAccess'
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('Home')
@@ -46,6 +49,23 @@ export default function App() {
   useEffect(() => scheduleFeaturePreparation(layout, performance), [layout, performance])
 
   useEffect(() => {
+    let prepared = false
+    const prepareLocation = () => {
+      if (!loadAutomaticQiblaLocation()) { prepared = false; return }
+      if (prepared) return
+      prepared = true
+      if (!getRecentDeviceLocation()) void refreshDeviceLocation({ allowCachedFallback: false })
+    }
+    prepareLocation()
+    window.addEventListener(QIBLA_PREFERENCES_EVENT, prepareLocation)
+    window.addEventListener('storage', prepareLocation)
+    return () => {
+      window.removeEventListener(QIBLA_PREFERENCES_EVENT, prepareLocation)
+      window.removeEventListener('storage', prepareLocation)
+    }
+  }, [])
+
+  useEffect(() => {
     const onLanguageChange = () => setLanguage(loadLanguage())
     window.addEventListener('athan-language-change', onLanguageChange)
     return () => window.removeEventListener('athan-language-change', onLanguageChange)
@@ -64,6 +84,7 @@ export default function App() {
   const isPrimary = (s: Screen) => (primaryTabs as readonly string[]).includes(s)
 
   const goTab = (t: RootFeatureId) => {
+    if (t === 'Qibla' && screen !== 'Qibla') prepareQiblaCompassAccess()
     setNavigationIntent(undefined)
     setScreen(t)
     setHistory([])
@@ -73,6 +94,7 @@ export default function App() {
     const target = s === 'Help' ? 'NeedHelp' : s
     if (!isScreen(target)) return
     if (target === screen) return
+    if (target === 'Qibla') prepareQiblaCompassAccess()
     if (history.at(-1)?.screen === target) {
       setNavigationIntent(history.at(-1)?.intent)
       setHistory((current) => current.slice(0, -1))
@@ -88,6 +110,7 @@ export default function App() {
     setNavigationIntent(undefined)
     const previous = history.at(-1)
     if (previous) {
+      if (previous.screen === 'Qibla') prepareQiblaCompassAccess()
       setNavigationIntent(previous.intent)
       setHistory((current) => current.slice(0, -1))
       setScreen(previous.screen)
@@ -141,6 +164,7 @@ export default function App() {
   const FeatureScreen = screen === 'Home' ? Home : getLazyScreen(screen)
   const selectedRoot = rootForScreen(screen)
   const retryScreen = () => {
+    if (screen === 'Qibla') prepareQiblaCompassAccess()
     resetFeatureScreen(screen)
     setRetry(current => current + 1)
   }
