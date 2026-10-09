@@ -7,6 +7,7 @@ import {
   getInstalledVersion,
   isPwaInstalled,
   refreshAthanApp,
+  reloadAthanApp,
   requestPwaInstall,
   subscribeInstallPrompt
 } from '../lib/pwa'
@@ -113,12 +114,12 @@ export default function PwaStatus({ language = 'en' }: Props) {
         </p>
       )}
 
-      <div className={`mt-4 grid gap-2 ${installAvailable && !installed ? 'sm:grid-cols-2' : ''}`}>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {installAvailable && !installed && (
           <button
             type="button"
             onClick={installApp}
-            className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-600"
+            className="min-h-11 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-600 sm:col-span-2"
           >
             {t('installAthan', language)}
           </button>
@@ -131,8 +132,17 @@ export default function PwaStatus({ language = 'en' }: Props) {
         >
           {checking ? t('checkingForUpdate', language) : t('checkForUpdate', language)}
         </button>
+        <button
+          type="button"
+          onClick={() => reloadAthanApp()}
+          disabled={checking}
+          className="min-h-11 rounded-md border border-gray-600 bg-gray-900 px-4 text-sm font-semibold text-gray-100 transition hover:border-teal-700 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t('refreshApp', language)}
+        </button>
       </div>
 
+      <p className="mt-3 text-xs leading-5 text-gray-400">{t('refreshAppHelp', language)}</p>
       <p className="mt-3 text-xs leading-5 text-gray-400">{t('pwaDataSafe', language)}</p>
       {message && (
         <p role="status" aria-live="polite" className="mt-3 rounded-md bg-gray-950 px-3 py-2 text-xs text-teal-200">

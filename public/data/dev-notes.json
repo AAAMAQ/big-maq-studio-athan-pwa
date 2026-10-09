@@ -1,5 +1,17 @@
 [
   {
+    "id": "2026-10-09-v4-0-2-qibla-refresh",
+    "date": "2026-10-09",
+    "version": "v4.0.2",
+    "title": "Clearer Qibla & Quick Refresh",
+    "summary": [
+      "Qibla attempts iPhone motion permission once on every screen entry while listening for valid headings. Enable Compass remains visible until a heading arrives, with a pending-request state, instructions for iOS's required tap and a retry when permission succeeds but no heading arrives. Clear live/waiting status prevents a static numeric bearing being mistaken for an active compass. Prevented duplicate pending requests, ignored late results after leaving or once readings work, and restarted sensor readiness after a grant. Browser/iOS decides whether its native popup appears; permanent permission, a forced popup and physical iPhone behavior are not promised by desktop tests.",
+      "Added Refresh app to Settings → PWA status in English and Arabic. It performs an ordinary reload, independent of Check for update, with no update request, cache deletion, service-worker unregister or data reset. Available offline for a cached app; save unfinished work first. It does not force-quit the operating system or guarantee that all device memory is released.",
+      "Expanded Need Help with the shared physical-location great-circle Qibla calculation and separate iPhone/Safari compass versus Android absolute-sensor/fallback paths. Explained Android smoothing, permission differences, magnetic versus True North, the absence of app-level declination correction or certified sensor accuracy, and why the 5° alignment threshold is not an accuracy guarantee. Neither platform is claimed to be universally more accurate. Kept the current Markdown guide synchronized and the old archive unchanged; no sensor math or Android behavior was changed.",
+      "Preserved location startup/retry, prayer calculations, compass heading validation, saved data and backup/privacy behavior. No dependencies or preferences added. Updated Credits, README and current Need Help; retained the old guide archive unchanged."
+    ]
+  },
+  {
     "id": "2026-10-08-v4-0-1-navigation-streaks",
     "date": "2026-10-08",
     "version": "v4.0.1",

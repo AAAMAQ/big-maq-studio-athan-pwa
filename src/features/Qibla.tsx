@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { refreshDeviceLocation, reverseGeocodeCoordinates, saveCachedLocation } from '../lib/locationStore'
 import {
   isQiblaCompassSupported,
@@ -87,11 +87,44 @@ export default function Qibla({ go }: Props) {
   const [compassStatus, setCompassStatus] = useState<PermissionStatusText>('unknown')
   const [needsCompassPermission, setNeedsCompassPermission] = useState(false)
   const [compassEnabled, setCompassEnabled] = useState(false)
+  const [compassAttempt, setCompassAttempt] = useState(0)
+  const [requestingCompass, setRequestingCompass] = useState(false)
   const [headingSource, setHeadingSource] = useState<QiblaHeadingSource | null>(null)
   const [compassDetail, setCompassDetail] = useState('Waiting for an absolute compass heading.')
   const alignedRef = useRef(false)
   const watchIdRef = useRef<number | null>(null)
   const compassReadingRef = useRef(false)
+  const compassMountedRef = useRef(false)
+  const permissionPendingRef = useRef(false)
+
+  const enableCompass = useCallback(async () => {
+    if (permissionPendingRef.current) return
+    permissionPendingRef.current = true
+    setRequestingCompass(true)
+    try {
+      // Call before any await: a manual tap must retain its user activation.
+      const permission = await window.DeviceOrientationEvent?.requestPermission?.()
+      if (!compassMountedRef.current || compassReadingRef.current) return
+      if (permission === 'granted') {
+        setCompassStatus('unknown')
+        setCompassDetail('Motion access granted, but the compass is not live yet. Hold the phone flat while waiting for a heading; if it stays still, tap Enable Compass to retry.')
+        setCompassEnabled(true)
+        setCompassAttempt(value => value + 1)
+      } else {
+        setNeedsCompassPermission(true)
+        setCompassStatus('denied')
+        setCompassDetail('Compass access was not allowed. Tap Enable Compass and choose Allow if asked. If access remains blocked, check Safari motion/orientation settings. The numeric bearing still works.')
+      }
+    } catch {
+      if (!compassMountedRef.current || compassReadingRef.current) return
+      setNeedsCompassPermission(true)
+      setCompassStatus('denied')
+      setCompassDetail('Compass is not active. Tap Enable Compass and choose Allow if asked. iOS may require this tap before showing its permission popup.')
+    } finally {
+      permissionPendingRef.current = false
+      if (compassMountedRef.current) setRequestingCompass(false)
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -199,40 +232,25 @@ export default function Qibla({ go }: Props) {
   }, [locationAttempt])
 
   useEffect(() => {
-    let active = true
+    compassMountedRef.current = true
     const needsPermission = !!(window.DeviceOrientationEvent &&
       typeof window.DeviceOrientationEvent.requestPermission === 'function')
     if (!isQiblaCompassSupported()) {
       setCompassStatus('unavailable')
       setCompassDetail('Compass sensors are not available in this browser. Use the numeric Qibla bearing.')
-      return
+      return () => { compassMountedRef.current = false }
     }
 
-    // Attach the listener on every visit so an already-authorized iPhone can
-    // immediately deliver headings without another button press.
+    // Listen while attempting permission once per visit. Safari owns the popup;
+    // when opening the screen has no user activation, the manual button retries.
     setCompassEnabled(true)
     if (needsPermission) {
-      async function reuseCompassPermission() {
-        try {
-          const permission = await window.DeviceOrientationEvent.requestPermission!()
-          if (!active || compassReadingRef.current) return
-          setNeedsCompassPermission(permission !== 'granted')
-          if (permission !== 'granted') {
-            setCompassStatus('denied')
-            setCompassDetail('Tap Enable Compass to allow motion access.')
-          }
-        } catch {
-          if (!active || compassReadingRef.current) return
-          // Safari requires a tap for a new permission grant. Keep the manual
-          // action as a fallback while listening for existing authorization.
-          setNeedsCompassPermission(true)
-          setCompassDetail('Tap Enable Compass if the direction does not appear.')
-        }
-      }
-      void reuseCompassPermission()
+      setNeedsCompassPermission(true)
+      setCompassDetail('Requesting compass access. Choose Allow if asked; if no popup appears, tap Enable Compass.')
+      void enableCompass()
     }
-    return () => { active = false }
-  }, [])
+    return () => { compassMountedRef.current = false }
+  }, [enableCompass])
 
   useEffect(() => {
     if (!compassEnabled) return
@@ -247,14 +265,15 @@ export default function Qibla({ go }: Props) {
         setCompassDetail(`${qiblaHeadingSourceLabel(reading.source)} ready. Hold the phone flat and away from magnets or metal.`)
       },
       onUnavailable(detail) {
+        if (permissionPendingRef.current) return
         setCompassStatus('unavailable')
         setNeedsCompassPermission(typeof window.DeviceOrientationEvent?.requestPermission === 'function')
-        setCompassDetail(detail)
+        setCompassDetail(`${detail} The compass is not live. If Enable Compass is shown, tap it to retry and choose Allow if asked.`)
       }
     })
 
     return () => controller.stop()
-  }, [compassEnabled])
+  }, [compassEnabled, compassAttempt])
 
   const turn = useMemo(() => {
     if (bearing === null || heading === null) return null
@@ -291,26 +310,6 @@ export default function Qibla({ go }: Props) {
     }
     if (!aligned) alignedRef.current = false
   }, [aligned, haptics])
-
-  async function enableCompass() {
-    try {
-      const permission = await window.DeviceOrientationEvent?.requestPermission?.()
-      if (permission === 'granted') {
-        setNeedsCompassPermission(false)
-        setCompassStatus('unknown')
-        setCompassDetail('Motion access granted. Waiting for an absolute compass heading.')
-        setCompassEnabled(true)
-      } else {
-        setCompassStatus('denied')
-        setCompassDetail('Compass permission denied. You can still follow the numeric Qibla bearing.')
-        setStatus('Compass permission denied. You can still follow the numeric Qibla bearing.')
-      }
-    } catch {
-      setCompassStatus('denied')
-      setCompassDetail('Compass permission failed. Check motion/orientation permissions.')
-      setStatus('Compass permission failed. Check motion/orientation permissions.')
-    }
-  }
 
   function openQiblaHelp() {
     window.location.hash = 'qibla'
@@ -362,6 +361,7 @@ export default function Qibla({ go }: Props) {
           instruction={instruction}
           locationLabel={locationLabel}
           needsCompassPermission={needsCompassPermission}
+          requestingCompass={requestingCompass}
           openQiblaHelp={openQiblaHelp}
           setHaptics={setHaptics}
           status={displayStatus}
@@ -375,6 +375,7 @@ export default function Qibla({ go }: Props) {
           heading={heading}
           headingSource={headingSource}
           needsCompassPermission={needsCompassPermission}
+          requestingCompass={requestingCompass}
           status={displayStatus}
         />
       )}
@@ -393,6 +394,7 @@ function SimpleQibla({
   instruction,
   locationLabel,
   needsCompassPermission,
+  requestingCompass,
   openQiblaHelp,
   setHaptics,
   status,
@@ -408,6 +410,7 @@ function SimpleQibla({
   instruction: { muted: string; strong: string }
   locationLabel: string
   needsCompassPermission: boolean
+  requestingCompass: boolean
   openQiblaHelp: () => void
   setHaptics: (enabled: boolean) => void
   status: string
@@ -474,13 +477,17 @@ function SimpleQibla({
         </div>
 
         <div className="w-full max-w-sm space-y-3">
+          <p role="status" className="rounded bg-gray-900 p-3 text-sm text-gray-300">
+            {heading === null ? 'Compass not live yet. ' : 'Live compass. '}{status}
+          </p>
           {needsCompassPermission && heading === null && (
             <button
               type="button"
               onClick={enableCompass}
-              className="w-full rounded bg-teal-600 px-4 py-3 font-semibold hover:bg-teal-500"
+              disabled={requestingCompass}
+              className="w-full rounded bg-teal-600 px-4 py-3 font-semibold hover:bg-teal-500 disabled:opacity-50"
             >
-              Enable Compass
+              {requestingCompass ? 'Requesting compass access…' : 'Enable Compass'}
             </button>
           )}
 
@@ -493,10 +500,6 @@ function SimpleQibla({
               className="h-4 w-4 accent-teal-500"
             />
           </label>
-
-          <p className="rounded bg-gray-900 p-3 text-xs text-gray-400">
-            {status}
-          </p>
         </div>
       </div>
     </div>
@@ -510,6 +513,7 @@ function AdvancedQibla({
   heading,
   headingSource,
   needsCompassPermission,
+  requestingCompass,
   status
 }: {
   bearing: number | null
@@ -518,6 +522,7 @@ function AdvancedQibla({
   heading: number | null
   headingSource: QiblaHeadingSource | null
   needsCompassPermission: boolean
+  requestingCompass: boolean
   status: string
 }) {
   const needleRotation = (() => {
@@ -558,10 +563,12 @@ function AdvancedQibla({
 
           {needsCompassPermission && heading == null && (
             <button
+              type="button"
               onClick={enableCompass}
-              className="px-4 py-2 rounded bg-teal-600 hover:bg-teal-500 text-white"
+              disabled={requestingCompass}
+              className="px-4 py-2 rounded bg-teal-600 hover:bg-teal-500 text-white disabled:opacity-50"
             >
-              Enable Compass
+              {requestingCompass ? 'Requesting compass access…' : 'Enable Compass'}
             </button>
           )}
 
@@ -569,7 +576,7 @@ function AdvancedQibla({
             Compass status: {compassStatus} · {qiblaHeadingSourceLabel(headingSource)}.
             Hold the device flat and away from metal; recalibrate compass if asked.
           </p>
-          {status && <p className="text-xs text-amber-500">{status}</p>}
+          {status && <p role="status" className="text-sm text-gray-300">{heading === null ? 'Compass not live yet. ' : 'Live compass. '}{status}</p>}
         </>
       )}
     </div>

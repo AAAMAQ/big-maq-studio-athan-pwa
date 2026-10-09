@@ -69,6 +69,11 @@ export async function requestPwaInstall(): Promise<InstallResult> {
   return choice.outcome
 }
 
+/** Ordinary reload only: no update request, cache deletion or data reset. */
+export function reloadAthanApp(reload: () => void = () => window.location.reload()): void {
+  reload()
+}
+
 export async function refreshAthanApp(
   onStatus?: (status: 'checking' | 'reloading' | 'fallback' | 'ready') => void
 ): Promise<void> {

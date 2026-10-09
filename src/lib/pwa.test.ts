@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { refreshAthanApp, requestPwaInstall } from './pwa'
+import { refreshAthanApp, reloadAthanApp, requestPwaInstall } from './pwa'
 
 beforeEach(() => {
   window.dispatchEvent(new Event('appinstalled'))
@@ -14,6 +14,27 @@ afterEach(() => {
 })
 
 describe('safe PWA updates', () => {
+  it('ordinary refresh invokes only reload, preserving data and caches even offline', () => {
+    const reload = vi.fn()
+    const update = vi.fn()
+    const unregister = vi.fn()
+    const registration = vi.fn().mockResolvedValue({ update, unregister })
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { getRegistration: registration } })
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+    const removeCache = vi.fn()
+    const network = vi.fn()
+    vi.stubGlobal('caches', { delete: removeCache })
+    vi.stubGlobal('fetch', network)
+    localStorage.setItem('salahLogV1', 'private fixture')
+    reloadAthanApp(reload)
+    expect(reload).toHaveBeenCalledOnce()
+    expect(registration).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+    expect(unregister).not.toHaveBeenCalled()
+    expect(removeCache).not.toHaveBeenCalled()
+    expect(network).not.toHaveBeenCalled()
+    expect(localStorage.getItem('salahLogV1')).toBe('private fixture')
+  })
   it('keeps the current shell and data when registration update fails', async () => {
     const unregister = vi.fn()
     const update = vi.fn().mockRejectedValue(new Error('Host blocked'))

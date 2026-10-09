@@ -1,6 +1,6 @@
 # Need Help
 
-Current guide for Athan PWA v4.0.1 — Clearer Navigation & Salah Streaks. Updated October 8, 2026 (Asia/Shanghai).
+Current guide for Athan PWA v4.0.2 — Clearer Qibla & Quick Refresh. Updated October 9, 2026 (Asia/Shanghai).
 
 This mirrors the current in-app guide. The separately archived old guide is historical reference only. Open Need Help directly from Feature Hub, Search app, Credits, or a custom shortcut.
 
@@ -507,10 +507,10 @@ In-app action: **Open Quran**.
 
 ## Qibla: location, compass and accuracy
 
-Automatic startup, permission retries, and what to do when a heading is unavailable.
+The same geographic Qibla calculation, different iPhone/Android compass paths, and honest accuracy limits.
 
 1. Open Qibla. It attempts your physical device location automatically; if that fails, allow location access in the browser/site settings and use Enable Location when shown.
-2. On iPhone, a new motion/compass permission may require tapping Enable Compass. Previously granted access is reused when available; behavior depends on the browser.
+2. On iPhone, Qibla attempts compass permission on every visit and listens for valid headings. Choose Allow if the popup appears. If no popup or live direction appears, tap Enable Compass; iOS may require that explicit tap. The screen stays marked as not live until a heading arrives, even after permission succeeds. The browser/iOS decides whether to ask again; Athan cannot force the popup or permanent permission.
 3. Use Simple Mode’s turn/alignment guidance or Advanced Mode’s bearing and heading. An available numeric bearing is not proof the device has a working compass.
 4. Move away from magnets, speakers and large metal objects; remove magnetic cases and calibrate according to your device’s guidance. Obtain a better location fix if the reported position is unsuitable.
 5. Compare with a trusted local direction/masjid when uncertain; treat low accuracy and unsupported-sensor messages seriously.
@@ -527,6 +527,46 @@ The bearing is the direction from your physical location to the Ka‘bah, measur
 With a verified heading, hold the phone steadily, screen facing up, away from magnetic attachments. Turn yourself and the phone together, following the turn/alignment instruction until the app indicates alignment. Do not assume a numeric bearing alone makes the top of your phone point correctly.
 
 Simple Mode shows turn guidance, Qibla bearing, available heading and approximate distance in kilometres to the Ka‘bah. Enable Haptic feedback when aligned if you want a short vibration; it depends on browser/device vibration support and is not guaranteed on every phone.
+
+### What is calculated the same on iPhone and Android?
+
+Both platforms use your physical latitude/longitude and the same Ka‘bah coordinates (21.4225° N, 39.8262° E). The app calculates the initial great-circle bearing: the starting direction of the shortest route on a spherical Earth, clockwise from geographic True North. It does not choose a different Qibla formula for iOS or Android, and your saved prayer city, madhab and prayer-time calculation method do not change this bearing.
+
+Your phone’s heading is a separate input: which way the phone is pointing. The app subtracts that heading from the calculated Qibla bearing and wraps the difference to the shortest left/right turn. A numeric Qibla bearing can therefore be available even when compass permission or sensors are not working.
+
+Alignment means the supplied heading is within 5° of the calculated bearing. This is a display threshold, not a promise of ±5° real-world accuracy or a measurement of sensor uncertainty.
+
+### iPhone / iPad: Safari compass and permission
+
+On Apple mobile devices, the app listens for Safari’s deviceorientation events and uses a finite webkitCompassHeading reading, normalized to 0–360°. It does not treat generic relative alpha rotation as a reliable North reference. The device/browser supplies this compass heading; the app does not reproduce Apple’s internal sensor calibration.
+
+Qibla attempts motion/orientation access on opening. Safari/iOS decides whether the native Allow popup appears or an explicit tap is required. If no live heading appears, tap Enable Compass and choose Allow if asked. Permission granted alone does not prove that the compass is working.
+
+Hold the phone flat in portrait orientation for the clearest comparison. The iPhone path uses the supplied compass heading directly, without the Android path’s additional smoothing and screen-rotation conversion. A denied permission, missing heading or unsupported browser can leave the numeric bearing available without a moving compass.
+
+### Android: absolute sensors, fallback and smoothing
+
+On supported Android browsers over HTTPS, the app first tries AbsoluteOrientationSensor. It converts the sensor’s quaternion (a 3D orientation reading) into a horizontal heading for the visible top edge of the screen. If that sensor fails or does not supply readings promptly, it listens for absolute device-orientation events instead.
+
+The fallback accepts only events marked absolute and accounts for available tilt angles and screen rotation. Session-relative motion is rejected rather than pretending the phone’s starting direction is North. A gyroscope that detects rotation alone is not enough to establish a trustworthy compass direction.
+
+The Android path applies circular smoothing to reduce jitter and sudden jumps, and keeps one active heading source rather than mixing competing streams. Smoothing may make movement look steadier or slightly delayed; it does not correct a wrong North reference or guarantee greater accuracy than an iPhone.
+
+Android support depends on the browser, sensor permissions and hardware, including access to the magnetometer. A browser that exposes an orientation API can still fail to deliver a usable compass. The iPhone-style permission popup is not assumed to exist on every Android browser.
+
+### Why accuracy can differ between phones
+
+Neither iPhone nor Android is always more accurate. Different hardware, browser sensor processing, calibration, screen posture and nearby magnetic fields can produce different headings or responsiveness. A live reading means data is arriving, not that the direction has been independently checked.
+
+True North and magnetic North are not identical. The calculated Qibla bearing uses geographic True North; the standard absolute-orientation sensor frame uses magnetic North, while other browser heading references depend on the implementation. This version uses the heading supplied by the browser and does not add its own magnetic-declination correction. Local differences between magnetic and True North can therefore affect alignment.
+
+The app does not show a measured angular-accuracy estimate or use Safari’s webkitCompassAccuracy value to certify readings. Do not interpret a stable arrow, a Live compass message or the alignment indicator as a professional accuracy guarantee. Compare with a trusted local masjid direction when uncertain.
+
+Location accuracy affects the calculated bearing; compass accuracy affects how the phone aligns to that bearing. Better internet or granting permission cannot repair magnetic interference or faulty sensors. Physical iPhone and Android checks are needed to assess real-device behavior; desktop and mocked tests verify software logic only.
+
+- [Browser orientation and Safari compass fields (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/DeviceOrientationEvent)
+- [Absolute orientation sensors and permissions (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/AbsoluteOrientationSensor)
+- [Magnetic-North sensor reference (W3C)](https://www.w3.org/TR/orientation-sensor/#absoluteorientationsensor-model)
 
 ### Quick checks when the compass seems wrong
 
@@ -603,12 +643,13 @@ Protect records before moving installations or troubleshooting.
 - Include custom layout is an explicit sender choice. Recipients preview it and separately select Apply shared layout; opening a link applies nothing automatically.
 - Only validated arrangement and Salah Brief visibility/chart choice are included. The recipient’s Brief uses their own records. Profile/timetable sharing is a different deliberate action.
 
-### Update safely
+### Refresh or update safely
 
-1. Connect to the app host, then Settings → PWA status → Check for update.
-2. If the check fails, keep using the current usable app/offline files and retry when connected. An update is not intended to erase saved records.
-3. If a screen cannot load, try its Retry action or return Home/Feature Hub/Settings. Uncached chunks or text may require a connection.
-4. Export a backup before clearing site data, changing domains/browsers or reinstalling. Do not erase records as the first fix for a blank screen.
+1. If the app feels slow, save unfinished work and choose Settings → PWA status → Refresh app. This reloads the screen without clearing saved records/caches or checking for updates. A cached app can reload offline; it is not an operating-system force-quit.
+2. For a new version, connect to the app host, then Settings → PWA status → Check for update. This is separate from the normal Refresh app button.
+3. If the check fails, keep using the current usable app/offline files and retry when connected. An update is not intended to erase saved records.
+4. If a screen cannot load, try its Retry action or return Home/Feature Hub/Settings. Uncached chunks or text may require a connection.
+5. Export a backup before clearing site data, changing domains/browsers or reinstalling. Do not erase records as the first fix for a blank screen.
 
 In-app action: **Open Backup and Restore**.
 

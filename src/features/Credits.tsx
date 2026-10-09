@@ -107,7 +107,7 @@ export default function Credits({ go, backTarget }: Props) {
           <CreditRow label="Date of Current Version" value={formatDevNoteDate(ATHAN_RELEASE.updatedAt)} />
           <CreditRow
             label="Latest Update"
-            value="v4.0.1 — Clearer Navigation & Salah Streaks: compact Home navigation and destination search, all-five streak search and analytics, optional weekly Salah Brief, teal stars, collapsible search help, consented layout sharing, and a refreshed Need Help main feature."
+            value="v4.0.2 — Clearer Qibla & Quick Refresh: attempt compass access on every Qibla visit, with an Enable Compass fallback and clear live/waiting status. iOS controls its permission popup. Added a normal Refresh app button in PWA status, separate from updating or clearing data."
           />
           <CreditRow label="Company" value="BiG MAQ Studio" />
         </dl>

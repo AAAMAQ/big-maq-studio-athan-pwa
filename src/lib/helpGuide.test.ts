@@ -50,6 +50,18 @@ describe('current help guide contracts', () => {
       }
     }
   })
+  it('explains shared Qibla maths and distinct platform sensors without guaranteeing accuracy', () => {
+    const qibla = HELP_TOPICS.find(topic => topic.id === 'qibla')!
+    const guide = JSON.stringify(qibla)
+    for (const phrase of ['initial great-circle bearing', '21.4225° N, 39.8262° E',
+      'webkitCompassHeading', 'AbsoluteOrientationSensor', 'quaternion', 'screen rotation',
+      'Session-relative motion is rejected', 'circular smoothing', 'Neither iPhone nor Android is always more accurate',
+      'does not add its own magnetic-declination correction', 'not a promise of ±5° real-world accuracy',
+      'webkitCompassAccuracy', 'Physical iPhone and Android checks']) {
+      expect(guide).toContain(phrase)
+    }
+    expect(qibla.parts?.find(part => part.title === 'Why accuracy can differ between phones')?.links).toHaveLength(3)
+  })
   it('retains the archived conversion prompt in the current guide', () => {
     const original = archive.split('<!-- BEGIN ORIGINAL PASTED TEXT -->\n\n')[1]
     expect(original).toBeDefined()

@@ -4,9 +4,17 @@ A lightweight, privacy-friendly Islamic utility built with React, TypeScript, Vi
 
 ## Current release
 
-**v4.0.1 — Clearer Navigation & Salah Streaks**
+**v4.0.2 — Clearer Qibla & Quick Refresh**
 
-Find app destinations through local predictive search, use the compact Home header and navigation-only Feature Hub, and explore verified all-five Salah streaks. Optional Salah Brief and explicitly shared layouts build on v4's personalization while preserving private records.
+Open Qibla with an automatic compass-access attempt and clear live/waiting status, and refresh a slow app from Settings without clearing data. All v4 navigation, customization, Salah tools and private records remain available.
+
+### Added and changed in v4.0.2
+
+- Qibla listens for valid compass readings and attempts iPhone motion permission once on every visit. If iOS requires a fresh tap, Enable Compass remains visible with clear instructions to choose Allow if asked. Permission granted without a heading is shown as not live, with a retry action; only verified headings show live status. Duplicate pending requests are prevented, leaving cleans up sensors, and a grant restarts the listener’s readiness check.
+- Safari/iOS owns permission persistence. Athan cannot force permanent permission or bypass a new browser prompt after access expires. Real iPhone permission persistence and sensor accuracy still require physical-device testing; desktop tests verify logic only.
+- Need Help now explains the shared geographic Qibla calculation, the different iPhone/Android compass paths, Android smoothing, and accuracy limitations. The 5° alignment indicator is not an accuracy guarantee; neither platform is claimed to be always more accurate.
+- Settings → PWA status → Refresh app performs an ordinary reload, separate from Check for update. It does not request an update, delete caches, unregister the service worker or reset records. It remains available offline when the installed app is cached; save unfinished work first. A reload does not promise to force-quit iOS or clear all operating-system memory.
+- No new preferences, backup keys, dependencies, prayer-calculation changes or data uploads. Updated Developer Notes, Credits and current Help guidance; old Need Help archive remains unchanged.
 
 ### Added and changed in v4.0.1
 
@@ -162,9 +170,11 @@ Quran Settings provides translation choices with a sample, bookmark controls, an
 
 ### Qibla
 
-Qibla attempts location on opening and reuses available permissions. Retry controls remain when automatic startup cannot complete. Simple Mode offers turn/alignment guidance, distance, and optional vibration; Advanced Mode exposes bearing and verified device heading.
+Qibla attempts location and iPhone motion permission on opening, while listening for valid compass readings. If no permission popup or live heading appears, tap Enable Compass and choose Allow if asked; iOS/browser popup behavior and permission persistence cannot be controlled by the app. The live/waiting status distinguishes a working compass from a numeric bearing or permission grant alone. Retry controls remain when automatic startup cannot complete. Simple Mode offers turn/alignment guidance, distance, and optional vibration; Advanced Mode exposes bearing and verified device heading.
 
 iPhone uses its dedicated browser compass heading; supported Android paths use Earth-referenced absolute heading. Relative-only motion is not displayed as North. Initial iOS motion permission can require a tap; support varies by browser/device. Desktop machines often lack compass sensors. Sensor calibration, magnetic interference, location accuracy, and permissions affect results. Desktop/mocked tests do not replace physical-phone verification.
+
+Both platforms calculate the same initial great-circle bearing to the Ka‘bah from physical coordinates. iPhone uses `webkitCompassHeading` directly; Android prefers a screen-referenced absolute sensor, falls back to absolute orientation events and smooths accepted readings. Neither is always more accurate. The geographic bearing is referenced to True North, whereas sensor North can be magnetic/implementation-dependent; this version adds no independent magnetic-declination correction or certified angular-accuracy estimate. The 5° alignment threshold is a UI tolerance, not a precision guarantee. See Need Help → Qibla for detailed platform comparisons and source references.
 
 ## Private Salah Tracker
 
